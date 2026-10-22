@@ -1,0 +1,24 @@
+{
+  "order": 14,
+  "id": "ember-wings",
+  "name": "Ember Wings",
+  "category": "Elements",
+  "icon": "flame",
+  "description": "In a roofless cathedral at night, wings of fire unfold from the back and beat once.",
+  "modes": [
+    "scene",
+    "own_image",
+    "video"
+  ],
+  "duration": 6,
+  "experimental": true,
+  "wardrobe": {
+    "man": "a long black coat, a black shirt, black trousers and black boots",
+    "woman": "a long black coat, a black shirt, black trousers and black boots",
+    "person": "a long black coat, a black shirt, black trousers and black boots"
+  },
+  "scene_prompt": "Create a new cinematic film still in {aspect_words} format. The {subject} from the reference images is the only person in it: keep {their} exact face, eyes, nose, jaw, hairline and hairstyle, skin tone and build{identity_notes}. Take only the face and hair from the references; the clothing, background and lighting are all new. The {subject} stands in the middle of the nave of a vast roofless ruined gothic cathedral at night, facing the camera, wearing {wardrobe}, head slightly lowered. Broken stone arches rise on both sides into a starry sky, moonlight falls through the empty windows, a few glowing embers float in the air, and the cracked stone floor is wet. Low-angle wide shot from the center of the nave, perfectly symmetrical, the {subject} centered with open space on both sides. Cinematic night photography, cold blue moonlight from above, a warm orange glow just behind {them}. Correct human anatomy, natural skin texture, sharp focus on the {subject}, bare weathered stone throughout.",
+  "effect_prompt": "Use the provided start image as the first frame. The {subject} ALREADY stands still in the nave and lifts {their} chin, eyes on a point just past the camera. Two huge wings made of living fire burst out of {their} shoulder blades and unfold to both sides, each one wider than the nave, built from layered feathers of flame and glowing embers; the wings beat once with a heavy downward stroke that blasts a ring of embers and dust across the stone floor, then hold wide open and keep burning. Firelight floods the arches and flickers on {their} face. The camera holds the low symmetrical angle and pushes in slowly. Sound: a roaring ignition, one deep thump of the wing beat, crackling fire and embers raining onto stone. Photorealistic, cinematic visual effects, fire with real turbulence and glowing embers, sharp detail, stable picture.",
+  "generic_prompt": "Use the provided start image as the first frame. The {subject} in the frame stays in place. Two huge wings made of living fire burst out of {their} shoulder blades and unfold to both sides, built from layered feathers of flame and glowing embers; the wings beat once with a heavy downward stroke that blasts a ring of embers outward, then hold wide open and keep burning, firelight flickering on everything around {them}. The camera keeps the same framing and the same movement it already has. Sound: a roaring ignition, one deep thump of the wing beat, crackling fire. Photorealistic, cinematic visual effects, fire with real turbulence and glowing embers, sharp detail, stable picture.",
+  "comfy_app": ""
+}

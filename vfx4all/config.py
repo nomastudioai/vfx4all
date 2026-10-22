@@ -1,0 +1,111 @@
+"""Paths, settings and the small tables the pipeline shares."""
+
+from __future__ import annotations
+
+import os
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+WORKFLOWS_DIR = ROOT / "workflows"
+PRESETS_DIR = ROOT / "presets"
+WEB_DIR = ROOT / "web"
+RUNS_DIR = Path(os.environ.get("VFX4ALL_RUNS_DIR", str(ROOT / "runs")))
+UPLOADS_DIR = RUNS_DIR / "uploads"
+
+SCENE_WORKFLOW = WORKFLOWS_DIR / "scene_qwen_image_2_1_edit.json"
+EFFECT_WORKFLOW = WORKFLOWS_DIR / "effect_ltx_2_5_i2v.json"
+# LTX-2.5 DFR (Diffusion Fidelity Rendering): detailing keyframes plus a spatial x2 pass with the
+# Refine-Details IC-LoRA. Sharper faces and textures than the classic two pass i2v (round 4 A/B,
+# 16/10/2026). VFX4ALL_EFFECT_PIPELINE=classic goes back to the old graph.
+DFR_WORKFLOW = WORKFLOWS_DIR / "effect_ltx_2_5_dfr_i2v.json"
+# Last frames of first-and-last-frame presets: Qwen Image Edit 2511 changes scale and style far more
+# than Qwen Image 2.1, which keeps re-drawing the first frame (round 6, 17/10/2026).
+EDIT_WORKFLOW = WORKFLOWS_DIR / "edit_qwen_image_edit_2511.json"
+FLF_WORKFLOW = WORKFLOWS_DIR / "effect_ltx_2_5_flf2v.json"
+
+
+def effect_pipeline() -> str:
+    """Read at call time, so a value set in .env (loaded after import) still counts."""
+    return os.environ.get("VFX4ALL_EFFECT_PIPELINE", "dfr").strip().lower()
+
+
+def load_dotenv(path: Path = ROOT / ".env") -> None:
+    """Read KEY=VALUE lines from .env without overriding the real environment."""
+    if not path.exists():
+        return
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
+
+
+def api_key() -> str:
+    return os.environ.get("COMFY_API_KEY", "").strip()
+
+
+# Output formats the user can pick for the image mode. "selector" is the
+# ResolutionSelector option the LTX workflow understands; "scene" is the size of
+# the first frame built by Qwen Image 2.1 Edit.
+ASPECTS = {
+    "16:9": {"selector": "16:9 (Widescreen)", "scene": (1344, 768), "words": "16:9 landscape"},
+    "9:16": {"selector": "9:16 (Portrait Widescreen)", "scene": (768, 1344), "words": "9:16 vertical"},
+}
+
+# Every ResolutionSelector ratio, used to match an uploaded image or video.
+SELECTOR_RATIOS = {
+    "1:1 (Square)": 1 / 1,
+    "2:3 (Portrait Photo)": 2 / 3,
+    "3:2 (Photo)": 3 / 2,
+    "3:4 (Portrait Standard)": 3 / 4,
+    "4:3 (Standard)": 4 / 3,
+    "9:16 (Portrait Widescreen)": 9 / 16,
+    "16:9 (Widescreen)": 16 / 9,
+    "21:9 (Ultrawide)": 21 / 9,
+}
+
+# LTX-2.5 renders in two passes (half size, then a x2 latent upscale), so the
+# output size is kept on a multiple of 64. Draft is the 480p class (896x512 in
+# 16:9) and HQ the 720p class (1280x704).
+QUALITY_MEGAPIXELS = {"draft": 0.45, "hq": 0.9}
+SIZE_MULTIPLE = 64
+
+# A render whose average luma stays under this is treated as a failed (black)
+# take and retried with a new seed.
+BLACK_LUMA_THRESHOLD = 20.0
+MAX_RETRIES = 2
+
+SUBJECTS = ("man", "woman", "person")
+
+# Clips the video mode accepts. The effect only replaces the part after the cut, so a long clip
+# buys nothing; and since LTX renders at 512p (Draft) or 704p (HQ) and is scaled to the clip,
+# anything under 480p or over 4K makes the seam visible.
+VIDEO_LIMITS = {
+    "min_seconds": 2,
+    "max_seconds": 60,
+    "min_short_side": 480,
+    "max_long_side": 4096,
+    "max_mb": 500,
+}
+
+
+def check_video(width: int, height: int, seconds: float, size_bytes: int) -> str | None:
+    """Why a clip is outside VIDEO_LIMITS, or None when it is fine."""
+    lim = VIDEO_LIMITS
+    if size_bytes > lim["max_mb"] * 1024 * 1024:
+        return f"That clip is over {lim['max_mb']} MB. Trim or compress it first."
+    if seconds < lim["min_seconds"]:
+        return f"That clip is {seconds:.1f} s. Use one of at least {lim['min_seconds']} s."
+    if seconds > lim["max_seconds"]:
+        return f"That clip is {seconds:.0f} s. Trim it to {lim['max_seconds']} s or less around the moment you want."
+    if min(width, height) < lim["min_short_side"]:
+        return f"That clip is {width}x{height}. Use 480p or more (short side of at least {lim['min_short_side']} px)."
+    if max(width, height) > lim["max_long_side"]:
+        return f"That clip is {width}x{height}. Use 4K or less (long side of up to {lim['max_long_side']} px)."
+    return None
+
+
+def closest_selector(width: int, height: int) -> str:
+    ratio = width / max(height, 1)
+    return min(SELECTOR_RATIOS, key=lambda name: abs(SELECTOR_RATIOS[name] - ratio))

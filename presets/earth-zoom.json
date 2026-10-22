@@ -1,0 +1,24 @@
+{
+  "order": 25,
+  "id": "earth-zoom",
+  "name": "Earth Zoom",
+  "category": "Worlds",
+  "icon": "globe",
+  "description": "From a rooftop, the camera pulls straight up and away until the subject is lost in a view of the whole planet.",
+  "modes": [
+    "scene",
+    "own_image",
+    "video"
+  ],
+  "duration": 6,
+  "experimental": true,
+  "wardrobe": {
+    "man": "a red jacket and dark trousers",
+    "woman": "a red coat and dark trousers",
+    "person": "a red jacket and dark trousers"
+  },
+  "scene_prompt": "Create a new cinematic film still in {aspect_words} format. The {subject} from the reference images is the only person in it: keep {their} exact face, eyes, nose, jaw, hairline and hairstyle, skin tone and build{identity_notes}. Take only the face and hair from the references; the clothing, background and lighting are all new. The {subject} lies on {their} back on the flat roof of a tall white building at noon, arms spread, looking straight up at the camera, wearing {wardrobe}. The rooftop is clean pale concrete, and the edges of the roof show the streets of a sunny coastal city far below. Top-down bird's-eye shot from directly above, the {subject} centered and filling the middle of the frame. Cinematic aerial photography, bright midday sun, crisp shadows, saturated colors. Correct human anatomy, natural skin texture, sharp focus on the {subject}, a plain concrete roof throughout.",
+  "effect_prompt": "Use the provided start image as the first frame. The {subject} ALREADY lies on the rooftop looking up at the camera, eyes on a point just past the camera. The camera pulls straight up and away in one continuous accelerating move: the rooftop shrinks, then the block and the streets, then the whole coastal city and the blue sea beside it, then the coastline under drifting clouds, until by the last second the curve of the Earth glows blue against black space, the bright point where the {subject} lay lost far below. The red of the clothes stays visible as long as possible as a tiny dot at the center. Sound: a rush of wind that fades into a deep quiet hum of space. Photorealistic, cinematic visual effects, seamless aerial and orbital imagery, sharp detail, stable picture.",
+  "generic_prompt": "Use the provided start image as the first frame. The camera pulls straight up and away from the {subject} in one continuous accelerating move: the place shrinks, then the surrounding streets and land, then the whole region under drifting clouds, until by the last second the curve of the Earth glows blue against black space. Sound: a rush of wind that fades into a deep quiet hum of space. Photorealistic, cinematic visual effects, seamless aerial and orbital imagery, sharp detail, stable picture.",
+  "comfy_app": ""
+}

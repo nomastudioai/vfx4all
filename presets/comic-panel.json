@@ -1,0 +1,23 @@
+{
+  "order": 41,
+  "id": "comic-panel",
+  "name": "Comic Panel",
+  "category": "Style",
+  "icon": "palette",
+  "description": "Ink lines and halftone dots take over the street until the shot is a living comic page.",
+  "modes": [
+    "scene"
+  ],
+  "duration": 6,
+  "experimental": true,
+  "wardrobe": {
+    "man": "a bright red jacket, a white t-shirt and blue jeans",
+    "woman": "a bright red jacket, a white t-shirt and blue jeans",
+    "person": "a bright red jacket, a white t-shirt and blue jeans"
+  },
+  "scene_prompt": "Create a new cinematic film still in {aspect_words} format. The {subject} from the reference images is the only person in it: keep {their} exact face, eyes, nose, jaw, hairline and hairstyle, skin tone and build{identity_notes}. Take only the face and hair from the references; the clothing, background and lighting are all new. The {subject} stands on a city sidewalk at noon, turned toward the camera with a determined look, wearing {wardrobe}, one hand in a pocket. Brownstone buildings with fire escapes, a yellow taxi-like cab passing behind, and a clear blue sky. Medium shot at a slight low angle, the {subject} on the left third, the street behind. Cinematic photography, hard midday sun from the upper right, strong shadows, bold colors. Correct human anatomy, natural skin texture, sharp focus on the {subject}, plain facades with blank windows and an unbranded car throughout.",
+  "effect_prompt": "Use the provided first image as the first frame and the provided last image as the last frame. The {subject} stays on the sidewalk in the same pose, eyes on a point just past the camera. The photograph turns into the comic panel of the last frame: bold black ink outlines draw themselves over every edge, starting at the outline of the {subject} and spreading across the street and the buildings, the colors flatten into bold saturated comic colors, halftone dots fill the shadows, and the thick black border closes in around the frame. Sound: a fast pen scratching across paper, a crisp page flip, a punchy whoosh. Photorealistic, cinematic visual effects, hand-inked color comic art with halftone shading, sharp detail, stable picture.",
+  "generic_prompt": "Use the provided start image as the first frame. Bold black ink lines draw themselves over every edge of the scene, the colors flatten into bold flat comic colors, the shadows fill with halftone dots, until by the last second the whole shot is a living hand-inked comic book panel with a thick black border, the {subject} drawn in clean ink but still moving and recognisable. The camera keeps the same framing and the same movement it already has. Sound: a fast pen scratching across paper, a crisp page flip. Photorealistic, cinematic visual effects, hand-inked comic art with halftone shading, sharp detail, stable picture.",
+  "comfy_app": "",
+  "last_frame_prompt": "Convert image 1 into a hand-inked color comic book panel: thick black ink outlines around every shape, flat bold saturated colors, halftone dot shading in the shadows, and a thick black panel border with plain white paper margins. Keep the same composition, the same pose, the face, the hair and every object in place, the jacket a solid bright red and the sky a flat bright cyan. The drawing alone inside the border."
+}

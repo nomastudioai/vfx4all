@@ -1,0 +1,24 @@
+{
+  "order": 10,
+  "id": "lightning-strike",
+  "name": "Lightning Strike",
+  "category": "Elements",
+  "icon": "bolt",
+  "description": "A rooftop in a night storm: a bolt hits and the subject stands on, crackling with blue electricity.",
+  "modes": [
+    "scene",
+    "own_image",
+    "video"
+  ],
+  "duration": 6,
+  "experimental": true,
+  "wardrobe": {
+    "man": "a black waterproof jacket over a dark hoodie, black trousers and black boots, all soaked",
+    "woman": "a black waterproof jacket over a dark hoodie, black trousers and black boots, all soaked",
+    "person": "a black waterproof jacket over a dark hoodie, black trousers and black boots, all soaked"
+  },
+  "scene_prompt": "Create a new cinematic film still in {aspect_words} format. The {subject} from the reference images is the only person in it: keep {their} exact face, eyes, nose, jaw, hairline and hairstyle, skin tone and build{identity_notes}. Take only the face and hair from the references; the clothing, background and lighting are all new. The {subject} stands in the middle of a flat concrete rooftop at night during a violent thunderstorm, facing the camera, soaked by heavy rain, wearing {wardrobe}, chin lifted toward the sky. Rain falls in dense streaks, the wet concrete holds puddles that mirror the sky, a distant city glows below the edge of the roof, and a fork of lightning splits the purple clouds far away on the left. Low-angle medium-wide shot from two metres away, the {subject} centered from head to knees, dark sky filling the top half. Cinematic night photography, cold blue lightning flash from the upper left, the warm city glow from below. Correct human anatomy, natural skin texture, sharp focus on the {subject}, a plain concrete rooftop and a clean skyline throughout.",
+  "effect_prompt": "Use the provided start image as the first frame. The {subject} ALREADY stands on the rooftop in the pouring rain, chin lifted, eyes on a point just past the camera. A blinding white-blue lightning bolt strikes straight down onto {their} shoulders with a flash that turns the whole roof white for a frame, and the {subject} stays standing, steady and unharmed, while crackling blue electricity keeps arcing over {their} body for the rest of the shot, racing along the arms and across the chest, small arcs jumping to the wet concrete and hissing in the puddles, the rain lit blue around {them}. The camera holds the low angle, shakes once with the strike, then pushes in slowly. Sound: a deafening crack of thunder, a sizzling electric buzz that stays under the whole shot, heavy rain on concrete. Photorealistic, cinematic visual effects, lightning and electric arcs with real brightness and branching, sharp detail, stable picture.",
+  "generic_prompt": "Use the provided start image as the first frame. The {subject} in the frame carries on with the same action. A blinding white-blue lightning bolt strikes straight down onto {their} shoulders with a flash that turns the frame white for an instant, and the {subject} stays standing, unharmed, while crackling blue electricity keeps arcing over {their} body for the rest of the shot, small arcs jumping to the ground around {them}. The camera keeps the same framing and the same movement it already has. Sound: a deafening crack of thunder, a sizzling electric buzz. Photorealistic, cinematic visual effects, electric arcs with real brightness and branching, sharp detail, stable picture.",
+  "comfy_app": ""
+}

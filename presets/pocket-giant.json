@@ -1,0 +1,22 @@
+{
+  "order": 32,
+  "id": "pocket-giant",
+  "name": "Pocket Giant",
+  "category": "Scale",
+  "icon": "building",
+  "description": "A tiny version of the subject walks across a café table among giant cups and spoons.",
+  "modes": [
+    "scene"
+  ],
+  "duration": 6,
+  "experimental": true,
+  "wardrobe": {
+    "man": "a denim jacket, a white t-shirt, dark jeans and brown boots",
+    "woman": "a denim jacket, a white t-shirt, dark jeans and brown boots",
+    "person": "a denim jacket, a white t-shirt, dark jeans and brown boots"
+  },
+  "scene_prompt": "Create a new cinematic film still in {aspect_words} format. The {subject} from the reference images appears in it only once, as a tiny person ten centimetres tall: keep {their} exact face, eyes, nose, jaw, hairline and hairstyle, skin tone and build{identity_notes}. Take only the face and hair from the references; the clothing, background and lighting are all new. The tiny {subject} stands on a wooden café table next to a white coffee cup that is as tall as {their} shoulders, wearing {wardrobe}, facing the camera, a croissant and a metal spoon lying beside {them} like giant objects. The rest of the café is softly blurred behind, warm and cozy. Macro close-up at table level, shallow depth of field, the tiny {subject} sharp and centered, full body visible. Cinematic macro photography, warm window light from the left. Correct human anatomy at a tiny scale, natural skin texture, sharp focus on the tiny {subject}, a plain unbranded cup throughout.",
+  "effect_prompt": "Use the provided start image as the first frame. The tiny {subject} ALREADY stands on the café table next to the coffee cup. {Their} small figure walks across the wooden table toward the camera, steps over the metal spoon with a little hop, leans one hand on the rim of a saucer, and looks up at a giant out-of-focus hand that sets a sugar cube down beside {them}, a cube as big as a crate. The camera holds a macro shot at table level and tracks slowly backward with {them}. Sound: tiny footsteps on wood, a soft clink of the spoon, the warm murmur of a café. Photorealistic, cinematic visual effects, macro photography with shallow depth of field and real scale, sharp detail, stable picture.",
+  "generic_prompt": "",
+  "comfy_app": ""
+}

@@ -1,0 +1,23 @@
+{
+  "order": 5,
+  "id": "disintegrate",
+  "name": "Disintegrate",
+  "category": "Elements",
+  "icon": "wind",
+  "description": "On a rooftop at golden hour the body breaks apart into glittering particles carried off by the wind.",
+  "modes": [
+    "scene",
+    "own_image",
+    "video"
+  ],
+  "duration": 6,
+  "wardrobe": {
+    "man": "a long charcoal wool coat",
+    "woman": "a long charcoal wool coat",
+    "person": "a long charcoal wool coat"
+  },
+  "scene_prompt": "Create a new cinematic film still in {aspect_words} format. The {subject} from the reference images is the only person in it: keep {their} exact face, eyes, nose, jaw, hairline and hairstyle, skin tone and build{identity_notes}. Take only the face and hair from the references; the clothing, background and lighting are all new. The {subject} stands at the edge of a flat concrete rooftop at golden hour, seen in three-quarter profile, looking out over a vast city skyline, wearing {wardrobe}, the hair lifted by the wind toward the left of the frame. The low sun sits behind on the right, outlining the {subject} in a warm golden rim light; the sky is amber and hazy. Medium-wide shot at eye level, the {subject} on the right third of the frame, the left two thirds open sky and skyline. Cinematic photography, warm backlight, soft haze, a gentle lens flare. Correct human anatomy, natural skin texture, sharp focus on the {subject}, blank rooftops and a clean skyline throughout.",
+  "effect_prompt": "Use the provided start image as the first frame. The {subject} ALREADY stands at the edge of the rooftop looking out over the city, calm, the hair moving in the wind. One slow breath, and starting at the fingertips of {their} left hand the body breaks apart into millions of fine ash-grey particles that the wind carries away to the left across the sky; the dissolving spreads up the arm, across the coat and shoulders and finally over the face as {their} eyes close, until by the last second the {subject} is gone and only a drifting cloud of glowing particles remains above the empty rooftop edge. The particles catch the golden backlight and glitter as they swirl and thin out over the skyline. The camera holds a steady medium-wide shot and drifts very slowly to the left with the particles. Sound: a soft rising wind, a fine granular hiss like sand pouring, a low warm ambient hum. Photorealistic, cinematic visual effects, particle simulation, sharp detail, stable picture.",
+  "generic_prompt": "Use the provided start image as the first frame. The {subject} in the frame stays calm and still. Starting at the fingertips of one hand, {their} body breaks apart into millions of fine ash-grey particles that a wind carries away to one side; the dissolving spreads up the arm, across the clothes and shoulders and finally over the face as {their} eyes close, until by the last second the {subject} is gone and only a drifting cloud of glowing particles remains. The particles catch the light and glitter as they swirl and thin out. The camera keeps the same framing and drifts slowly with the particles. Sound: a soft rising wind, a fine granular hiss like sand pouring, a low ambient hum. Photorealistic, cinematic visual effects, particle simulation, sharp detail, stable picture.",
+  "comfy_app": ""
+}

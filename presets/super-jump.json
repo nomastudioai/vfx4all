@@ -1,0 +1,24 @@
+{
+  "order": 35,
+  "id": "super-jump",
+  "name": "Super Jump",
+  "category": "Physics",
+  "icon": "bolt",
+  "description": "One crouch and a single leap launches the subject high over the rooftops at sunset.",
+  "modes": [
+    "scene",
+    "own_image",
+    "video"
+  ],
+  "duration": 6,
+  "experimental": true,
+  "wardrobe": {
+    "man": "a black track jacket, black joggers and white sneakers",
+    "woman": "a black track jacket, black joggers and white sneakers",
+    "person": "a black track jacket, black joggers and white sneakers"
+  },
+  "scene_prompt": "Create a new cinematic film still in {aspect_words} format. The {subject} from the reference images is the only person in it: keep {their} exact face, eyes, nose, jaw, hairline and hairstyle, skin tone and build{identity_notes}. Take only the face and hair from the references; the clothing, background and lighting are all new. The {subject} stands in the middle of a narrow city street lined with three-storey buildings at sunset, facing the camera, wearing {wardrobe}, knees bent in a low crouch, fingertips touching the asphalt. Warm orange light rakes down the street, laundry lines cross between the balconies, and the sky above the rooftops is pink and gold. Low-angle wide shot from street level, the {subject} centered, the rooftops and the sky filling the top half. Cinematic photography, warm sunset backlight, long shadows. Correct human anatomy, natural skin texture, sharp focus on the {subject}, plain facades with blank walls throughout.",
+  "effect_prompt": "Use the provided start image as the first frame. The {subject} ALREADY crouches low on the asphalt, eyes on a point just past the camera. {Their} legs drive down and the {subject} launches straight up in one massive leap, the asphalt cracking in a star under {their} feet and a puff of dust bursting outward, and soars high above the rooftops, arms and jacket trailing, a small silhouette against the pink and gold sky by the last second. The camera tilts up fast to follow the jump. Sound: a sharp crack of asphalt, a powerful whoosh, rushing wind. Photorealistic, cinematic visual effects, jump physics with real ground impact and dust, sharp detail, stable picture.",
+  "generic_prompt": "Use the provided start image as the first frame. The {subject} in the frame crouches and launches straight up in one massive leap, the ground cracking under {their} feet and dust bursting outward, and soars high up and out of the top of the frame. The camera keeps the same framing and the same movement it already has. Sound: a sharp crack of the ground, a powerful whoosh, rushing wind. Photorealistic, cinematic visual effects, jump physics with real ground impact and dust, sharp detail, stable picture.",
+  "comfy_app": ""
+}

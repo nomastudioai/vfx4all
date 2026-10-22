@@ -1,0 +1,23 @@
+{
+  "order": 1,
+  "id": "walk-of-fire",
+  "name": "Walk of Fire",
+  "category": "Elements",
+  "icon": "flame",
+  "description": "A night walk down a wet industrial street that bursts into a full-body blaze mid-stride.",
+  "modes": [
+    "scene",
+    "own_image",
+    "video"
+  ],
+  "duration": 6,
+  "wardrobe": {
+    "man": "a long black wool coat open over a black t-shirt, black trousers and black boots",
+    "woman": "a long black wool coat over a black turtleneck, black trousers and black boots",
+    "person": "a long black wool coat over black clothes and black boots"
+  },
+  "scene_prompt": "Create a new cinematic film still in {aspect_words} format. The {subject} from the reference images is the only person in it: keep {their} exact face, eyes, nose, jaw, hairline and hairstyle, skin tone and build{identity_notes}. Take only the face and hair from the references; the clothing, background and lighting are all new. The {subject} walks straight toward the camera down the middle of an empty industrial street at night, mid-stride, wearing {wardrobe}, hands loose at the sides. Red-brick warehouses line both sides, sodium streetlights cast pools of orange light, steam rises from a grate in the distance, and the wet asphalt holds long glossy reflections. Low-angle wide shot from knee height, symmetrical one-point perspective with the street vanishing behind {them}, the full body filling the middle third of the frame height. Cinematic night photography, anamorphic look, deep shadows with warm sodium highlights and a cool blue moonlight rim on the shoulders. Correct human anatomy, natural skin texture, sharp focus on the {subject}, plain unmarked brick walls throughout.",
+  "effect_prompt": "Use the provided start image as the first frame. The {subject} is ALREADY walking toward the camera in a calm, heavy, unhurried \"funeral march\" stride, weight landing on each heel, shoulders level, arms swinging loose, and keeps walking at exactly the same pace for the whole shot. On the second step, fire erupts from {their} shoulders and spreads over the whole body in a single roaring burst, and the {subject} walks on fully engulfed in tall orange flames, the fire streaming backward like a cape, while {their} face stays clear, calm and unharmed inside the blaze. Every footstep leaves a burning footprint on the wet asphalt, and the flames throw dancing orange light across the brick walls and long fire reflections across the puddles. {Their} eyes stay locked on a point just past the camera, one slow deliberate blink when the flames reach the collar, and the stride never breaks. The camera holds a low angle and slowly dollies backward at walking pace, keeping the {subject} centered and the same size in frame. Sound: a deep whoomph as the fire ignites, then a steady roaring blaze, heavy footsteps on wet asphalt and a low distant city hum. Photorealistic, cinematic night visual effects, fire with real weight and turbulence, sharp detail, stable picture.",
+  "generic_prompt": "Use the provided start image as the first frame. The {subject} in the frame carries on with exactly the same action and pace. Within the first second, fire erupts from {their} shoulders and spreads over {their} whole body in a single roaring burst, tall orange flames streaming upward and backward with real weight and turbulence, while {their} face stays clear, calm and unharmed inside the blaze. Embers drift upward, dark smoke rises, and the firelight throws flickering orange light across everything around {them}. The camera keeps the same framing and the same movement it already has. Sound: a deep whoomph as the fire ignites, then a steady roaring blaze and crackling embers. Photorealistic, cinematic visual effects, sharp detail, stable picture.",
+  "comfy_app": ""
+}

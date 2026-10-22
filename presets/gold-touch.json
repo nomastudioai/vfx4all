@@ -1,0 +1,24 @@
+{
+  "order": 15,
+  "id": "gold-touch",
+  "name": "Gold Touch",
+  "category": "Transformations",
+  "icon": "gem",
+  "description": "In a baroque palace hall a wave of polished gold rolls over skin and clothes until the subject is a golden statue.",
+  "modes": [
+    "scene",
+    "own_image",
+    "video"
+  ],
+  "duration": 6,
+  "experimental": true,
+  "wardrobe": {
+    "man": "an ivory tuxedo jacket, a white shirt and black trousers",
+    "woman": "a long ivory silk evening gown",
+    "person": "elegant ivory evening clothes"
+  },
+  "scene_prompt": "Create a new cinematic film still in {aspect_words} format. The {subject} from the reference images is the only person in it: keep {their} exact face, eyes, nose, jaw, hairline and hairstyle, skin tone and build{identity_notes}. Take only the face and hair from the references; the clothing, background and lighting are all new. The {subject} stands in the middle of an empty baroque palace hall, facing the camera, wearing {wardrobe}, {their} right hand raised in front of {their} chest, looking at {their} fingertips. White walls with gilded mouldings, tall mirrors, crystal chandeliers and a polished parquet floor that reflects everything. Medium-wide shot at eye level, perfectly symmetrical, the {subject} centered, full body visible. Cinematic photography, warm chandelier light from above, soft window light from the left. Correct human anatomy, natural skin texture, sharp focus on the {subject}, plain gilded mouldings and clean mirrors throughout.",
+  "effect_prompt": "Use the provided start image as the first frame. The {subject} ALREADY stands still looking at {their} raised fingertips. Starting at the fingertips, polished liquid gold spreads over the skin and the clothes in a slow rolling wave, up the arm, across the chest, down the body and finally over the face and the hair, until by the last second the {subject} is a gleaming solid gold statue in the same pose, eyes fixed on a point just past the camera, mirror-bright reflections of the chandeliers sliding over the metal. The camera arcs slowly to the right around the {subject} at eye level. Sound: a warm metallic shimmer, a soft ringing like a struck bell, the quiet echo of the hall. Photorealistic, cinematic visual effects, polished gold with real reflections and metallic weight, sharp detail, stable picture.",
+  "generic_prompt": "Use the provided start image as the first frame. The {subject} in the frame slows to a stop. Starting at one hand, polished liquid gold spreads over the skin and the clothes in a slow rolling wave, up the arm, across the body and finally over the face and the hair, until by the last second the {subject} is a gleaming solid gold statue in the same pose, reflections sliding over the metal. The camera keeps the same framing and the same movement it already has. Sound: a warm metallic shimmer, a soft ringing like a struck bell. Photorealistic, cinematic visual effects, polished gold with real reflections and metallic weight, sharp detail, stable picture.",
+  "comfy_app": ""
+}

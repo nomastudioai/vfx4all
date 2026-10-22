@@ -1,0 +1,24 @@
+{
+  "order": 19,
+  "id": "inflate",
+  "name": "Inflate",
+  "category": "Transformations",
+  "icon": "orbit",
+  "description": "In a pastel town square the subject balloons up and floats off into the sky.",
+  "modes": [
+    "scene",
+    "own_image",
+    "video"
+  ],
+  "duration": 6,
+  "experimental": true,
+  "wardrobe": {
+    "man": "a mint green shirt and cream trousers",
+    "woman": "a mint green sundress",
+    "person": "a mint green shirt and cream trousers"
+  },
+  "scene_prompt": "Create a new cinematic film still in {aspect_words} format. The {subject} from the reference images is the only person in it: keep {their} exact face, eyes, nose, jaw, hairline and hairstyle, skin tone and build{identity_notes}. Take only the face and hair from the references; the clothing, background and lighting are all new. The {subject} stands in the middle of a sunny cobblestone town square with pastel-colored facades in pink, yellow and mint, facing the camera with a curious look, wearing {wardrobe}. Window boxes full of flowers, a few pigeons on the stones and a clear blue sky. Medium-wide shot at eye level, the {subject} centered, full body visible, plenty of sky above. Cinematic photography, bright midday sun from the upper left, saturated cheerful colors. Correct human anatomy, natural skin texture, sharp focus on the {subject}, plain pastel facades with blank walls throughout.",
+  "effect_prompt": "Use the provided start image as the first frame. The {subject} ALREADY stands in the square and looks down at {their} own hands in surprise. The whole body puffs up like a balloon, round and glossy, the clothes stretching tight over it, the face keeping its features and its surprised expression, until the {subject} is a big round balloon figure that lifts off the cobblestones, rotates slowly and floats up into the blue sky, pigeons scattering below. The camera tilts up to follow {them}. Sound: a rubbery stretching squeak, a long hiss of air, pigeons flapping away, a light breeze. Photorealistic, cinematic visual effects, glossy inflated rubber surface with real stretch, sharp detail, stable picture.",
+  "generic_prompt": "Use the provided start image as the first frame. The {subject} in the frame stops and looks down in surprise. The whole body puffs up like a balloon, round and glossy, the clothes stretching tight over it and the face keeping its features, until the {subject} is a big round balloon figure that lifts off the ground, rotates slowly and floats up out of the frame. The camera keeps the same framing and the same movement it already has. Sound: a rubbery stretching squeak, a long hiss of air. Photorealistic, cinematic visual effects, glossy inflated rubber surface with real stretch, sharp detail, stable picture.",
+  "comfy_app": ""
+}

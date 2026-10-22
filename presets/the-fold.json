@@ -1,0 +1,23 @@
+{
+  "order": 4,
+  "id": "the-fold",
+  "name": "The Fold",
+  "category": "Worlds",
+  "icon": "layers",
+  "description": "An empty avenue at dawn lifts off the ground and folds the whole city overhead.",
+  "modes": [
+    "scene",
+    "own_image",
+    "video"
+  ],
+  "duration": 6,
+  "wardrobe": {
+    "man": "a dark grey bomber jacket, a black t-shirt, black jeans and white sneakers",
+    "woman": "a dark grey bomber jacket, a black top, black jeans and white sneakers",
+    "person": "a dark grey bomber jacket, a black top, black jeans and white sneakers"
+  },
+  "scene_prompt": "Create a new cinematic film still in {aspect_words} format. The {subject} from the reference images is the only person in it: keep {their} exact face, eyes, nose, jaw, hairline and hairstyle, skin tone and build{identity_notes}. Take only the face and hair from the references; the clothing, background and lighting are all new. The {subject} stands still in the middle of a wide, completely empty city avenue at dawn, feet planted, facing the camera with the head tilted back, looking up at the sky, wearing {wardrobe}. Tall glass and pale stone office towers line both sides of the avenue and recede to a vanishing point far behind; the asphalt is clean with faded white lane markings; the sky is pale pink and gold, with a low morning sun from the right raking across the facades. Very wide low-angle shot from near the ground, the full body small in the lower center of the frame, about a quarter of the frame height, the upper half of the frame open sky above the towers. Cinematic photography, soft golden morning light, long shadows. Correct human anatomy, natural skin texture, sharp focus on the {subject}, blank facades and clean asphalt throughout.",
+  "effect_prompt": "Use the provided start image as the first frame. The {subject} stands rooted in the middle of the empty avenue, feet planted, and stays in place for the whole shot while the city bends around {them}. The head tilts back to look up as the far end of the avenue lifts off the ground and curls upward, the asphalt, the lane markings and the glass towers rising and rolling over the sky until the street continues upside down overhead, the buildings hanging from above like a giant curved tunnel of city closing over {them}. {Their} eyes track the rising street, flicking across the towers as they pass overhead, one slow blink, lips parting slightly, one small step back for balance. The camera holds a low wide angle and tilts slowly upward to follow the fold. Sound: a deep tectonic groan, concrete and steel creaking and grinding, glass windows rattling, a rising wind. Photorealistic, cinematic visual effects, gravity-defying architecture, sharp detail, stable picture.",
+  "generic_prompt": "Use the provided start image as the first frame. The {subject} in the frame stays in place for the whole shot while the world around {them} bends. The ground and everything behind {them} lift off and curl upward over the sky, rolling overhead until the surroundings continue upside down above, like a giant curved tunnel of the same place closing over {them}. {Their} eyes rise to follow the fold, one slow blink, lips parting slightly. The camera tilts slowly upward to follow the fold. Sound: a deep tectonic groan, creaking and grinding structures, a rising wind. Photorealistic, cinematic visual effects, gravity-defying architecture, sharp detail, stable picture.",
+  "comfy_app": ""
+}

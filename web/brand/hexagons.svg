@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320.5 277.63">
+  <g id="Capa_1" data-name="Capa 1">
+    <g>
+      <polygon fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width=".5" points="240.25 .25 80.25 .25 .25 138.81 80.25 277.38 240.25 277.38 320.25 138.81 240.25 .25"/>
+      <polygon fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1" points="90.25 17.57 20.25 138.81 90.25 260.06 230.25 260.06 300.25 138.81 230.25 17.57 90.25 17.57"/>
+      <polygon fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" points="100.25 34.89 40.25 138.81 100.25 242.74 220.25 242.74 280.25 138.81 220.25 34.89 100.25 34.89"/>
+      <polygon fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" points="210.25 52.21 110.25 52.21 60.25 138.81 110.25 225.42 210.25 225.42 260.25 138.81 210.25 52.21"/>
+    </g>
+  </g>
+</svg>

@@ -1,0 +1,22 @@
+{
+  "order": 24,
+  "id": "shadow-twin",
+  "name": "Shadow Twin",
+  "category": "Clones",
+  "icon": "copy",
+  "description": "In a long corridor under a hard side light, the subject's shadow peels off the wall and moves by itself.",
+  "modes": [
+    "scene"
+  ],
+  "duration": 6,
+  "experimental": true,
+  "wardrobe": {
+    "man": "a light grey suit and a white shirt",
+    "woman": "a light grey suit and a white shirt",
+    "person": "a light grey suit and a white shirt"
+  },
+  "scene_prompt": "Create a new cinematic film still in {aspect_words} format. The {subject} from the reference images is the only person in it: keep {their} exact face, eyes, nose, jaw, hairline and hairstyle, skin tone and build{identity_notes}. Take only the face and hair from the references; the clothing, background and lighting are all new. The {subject} stands in a long empty corridor with bare white walls, in profile, facing the right side of the frame, wearing {wardrobe}. A single hard low light from the right throws a long, sharp, pitch-black shadow of the {subject} onto the white wall on the left. Medium-wide shot at eye level from across the corridor, the {subject} on the right third and the full shadow on the wall in the left two thirds. Cinematic photography, hard low key light from the right, high contrast, cool neutral tones. Correct human anatomy, natural skin texture, sharp focus on the {subject}, bare white walls throughout.",
+  "effect_prompt": "Use the provided start image as the first frame. The {subject} ALREADY stands still in profile in the corridor, the long black shadow on the wall beside {them}. The shadow stops copying {them}: it turns its head toward the camera while the {subject} stays still, then it peels off the wall as a three-dimensional pitch-black silhouette with the exact outline of the {subject}, steps down onto the floor and stands facing the {subject}, a featureless matte black twin, while the wall behind it is left bare and white. The camera holds a steady medium-wide shot. Sound: a soft tearing whisper as the shadow peels away, one footstep on the floor, a low droning tone. Photorealistic, cinematic visual effects, a pitch-black matte silhouette with crisp edges, sharp detail, stable picture.",
+  "generic_prompt": "",
+  "comfy_app": ""
+}

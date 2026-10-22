@@ -1,0 +1,28 @@
+{
+  "order": 40,
+  "id": "stop-motion",
+  "name": "Stop Motion",
+  "category": "Time",
+  "icon": "clock",
+  "description": "A cozy living room jitters into handmade stop motion, felt and stitches included.",
+  "modes": [
+    "scene",
+    "own_image",
+    "video"
+  ],
+  "duration": 6,
+  "experimental": true,
+  "effect_lora": {
+    "name": "LTX2.3_Cozy_Felt_Style.safetensors",
+    "strength": 0.6
+  },
+  "wardrobe": {
+    "man": "a chunky red knit sweater and brown corduroy trousers",
+    "woman": "a chunky red knit sweater and brown corduroy trousers",
+    "person": "a chunky red knit sweater and brown corduroy trousers"
+  },
+  "scene_prompt": "Create a new cinematic film still in {aspect_words} format. The {subject} from the reference images is the only person in it: keep {their} exact face, eyes, nose, jaw, hairline and hairstyle, skin tone and build{identity_notes}. Take only the face and hair from the references; the clothing, background and lighting are all new. The {subject} sits on a green velvet armchair in a cozy living room in the evening, facing the camera, wearing {wardrobe}, holding a mug in both hands. A knitted blanket, a lamp with a warm fabric shade, a bookshelf, a rug with patterns and a small cat asleep on a cushion fill the room. Medium-wide shot at eye level, the {subject} centered. Cinematic photography, warm tungsten lamp light from the right, cozy amber tones. Correct human anatomy, natural skin texture, sharp focus on the {subject}, books with plain unmarked spines throughout.",
+  "effect_prompt": "Use the provided start image as the first frame. The {subject} ALREADY sits in the armchair holding the mug. The world turns into handmade stop motion: the motion becomes choppy and stepped like twelve frames per second, the room and everything in it turn into felt, wool and stitched fabric with visible seams, the lamp light becomes warm and miniature, and the {subject} turns into a felt puppet with yarn hair and stitched clothes who lifts the mug, takes a sip and waves at the camera with small jerky handmade steps, the cat stretching in stop motion on the cushion. The camera holds a steady medium-wide shot. Sound: soft fabric rustles, a tiny clink of the mug, a gentle crackling of a fireplace. Photorealistic, cinematic visual effects, handmade felt stop-motion animation, sharp detail, stable picture.",
+  "generic_prompt": "Use the provided start image as the first frame. The world turns into handmade stop motion: the motion becomes choppy and stepped like twelve frames per second, everything turns into felt, wool and stitched fabric with visible seams, and the {subject} becomes a felt puppet that keeps moving in small jerky handmade steps. The camera keeps the same framing and the same movement it already has. Sound: soft fabric rustles, tiny handmade clicks. Photorealistic, cinematic visual effects, handmade felt stop-motion animation, sharp detail, stable picture.",
+  "comfy_app": ""
+}

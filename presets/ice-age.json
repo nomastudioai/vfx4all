@@ -1,0 +1,24 @@
+{
+  "order": 9,
+  "id": "ice-age",
+  "name": "Ice Age",
+  "category": "Elements",
+  "icon": "snow",
+  "description": "On a frozen lake at dawn, frost climbs the body until the subject stands sealed in clear glacier ice.",
+  "modes": [
+    "scene",
+    "own_image",
+    "video"
+  ],
+  "duration": 6,
+  "experimental": true,
+  "wardrobe": {
+    "man": "a long camel wool coat, a cream knit scarf, dark trousers and brown leather boots",
+    "woman": "a long camel wool coat, a cream knit scarf, dark trousers and brown leather boots",
+    "person": "a long camel wool coat, a cream knit scarf, dark trousers and brown leather boots"
+  },
+  "scene_prompt": "Create a new cinematic film still in {aspect_words} format. The {subject} from the reference images is the only person in it: keep {their} exact face, eyes, nose, jaw, hairline and hairstyle, skin tone and build{identity_notes}. Take only the face and hair from the references; the clothing, background and lighting are all new. The {subject} stands alone in the middle of a vast frozen lake at dawn, facing the camera, wearing {wardrobe}, a faint mist of breath at {their} lips. The ice is dark and glassy with white cracks and a dusting of snow, a pine forest lines the far shore under a pale pink and blue sky, and low mist hangs over the ice. Medium-wide shot at eye level from twelve metres away, the {subject} centered, full body visible, the horizon on the upper third. Cinematic winter photography, soft cold dawn light from behind on the right with a pale rim on the shoulders, cool blue shadows. Correct human anatomy, natural skin texture, sharp focus on the {subject}, plain untouched snow and a clean horizon throughout.",
+  "effect_prompt": "Use the provided start image as the first frame. The {subject} ALREADY stands still on the frozen lake, breathing slowly, mist leaving {their} lips. Frost blooms out of the ice around {their} boots and climbs the body in crystalline white veins, up the legs, across the coat and over the shoulders, and thick clear ice grows over it layer on layer, until by the last second the {subject} stands sealed inside a clear block of glacier ice, frozen mid-breath, eyes open and fixed on a point just past the camera, air bubbles and frost feathers caught in the ice. Fine ice crystals drift and glitter in the dawn light. The camera pushes in very slowly from a medium-wide shot to a medium shot. Sound: a deep groan of lake ice, sharp crackling and creaking as the ice grows, a thin cold wind. Photorealistic, cinematic visual effects, ice with real refraction, frost texture and trapped air bubbles, sharp detail, stable picture.",
+  "generic_prompt": "Use the provided start image as the first frame. The {subject} in the frame slows to a stop and stays still. Frost blooms over {their} feet and climbs the body in crystalline white veins, and thick clear ice grows over it layer on layer, until by the last second the {subject} stands sealed inside a clear block of ice, frozen mid-breath, eyes open, air bubbles and frost feathers caught in the ice, fine ice crystals drifting in the air. The camera keeps the same framing and the same movement it already has. Sound: sharp crackling and creaking ice, a thin cold wind. Photorealistic, cinematic visual effects, ice with real refraction and frost texture, sharp detail, stable picture.",
+  "comfy_app": ""
+}
