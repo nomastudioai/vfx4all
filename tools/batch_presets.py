@@ -77,7 +77,8 @@ def run_one(engine: Engine, preset: dict, cast: dict, out: Path, tag: str, seed:
     record = {"id": pid, "subject": subject, "seed": seed, "lora": preset.get("effect_lora")}
     if not (reuse_scene and scene_png.exists()):
         prompt = render(preset["scene_prompt"], subject=subject, aspect_words=fmt["words"],
-                        identity_notes=actor["notes"], wardrobe=wardrobe_for(preset, subject))
+                        identity_notes=actor["notes"], wardrobe=wardrobe_for(preset, subject),
+                        references=len(actor["refs"]))
         refs = [Path(r) for r in actor["refs"]]
         log(f"{pid}: scene ({subject})")
         made = retry_io(lambda: engine.scene(refs, prompt, fmt["scene"], seed, scene_png.with_suffix(""),

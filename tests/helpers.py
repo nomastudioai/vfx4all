@@ -22,6 +22,13 @@ def make_clip(path: Path, seconds: float, size: str = "854x480", fps: int = 24, 
     return path
 
 
+def make_rotated(source: Path, path: Path, degrees: int) -> Path:
+    """The same clip with a display rotation, the way a phone saves a vertical video."""
+    subprocess.run([FFMPEG, "-hide_banner", "-loglevel", "error", "-y", "-display_rotation", str(degrees),
+                    "-i", str(source), "-c", "copy", str(path)], check=True)
+    return path
+
+
 def make_image(path: Path, size: str = "320x180") -> Path:
     subprocess.run([FFMPEG, "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi",
                     "-i", f"testsrc2=size={size}:rate=1", "-frames:v", "1", str(path)], check=True)

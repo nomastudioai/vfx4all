@@ -4,7 +4,10 @@ splice an effect into an existing video."""
 from __future__ import annotations
 
 import random
+import threading
+from contextlib import contextmanager
 from pathlib import Path
+from typing import Iterator
 
 from comfy_sdk.exceptions import JobFailed
 
@@ -16,15 +19,34 @@ from .jobs import Job
 from .presets import get_preset, render, wardrobe_for
 
 SPLICE_DURATION = 5
-_ENGINES: dict[str, Engine] = {}
+_SERVER_ENGINE: Engine | None = None
+_ENGINE_LOCK = threading.Lock()
 
 
-def engine_for(key: str | None) -> Engine:
-    """The server key's engine, or one bound to the key the user brought."""
-    slot = (key or "").strip()
-    if slot not in _ENGINES:
-        _ENGINES[slot] = Engine(slot or None)
-    return _ENGINES[slot]
+@contextmanager
+def engine_for(key: str | None) -> Iterator[Engine]:
+    """The server key's engine (shared), or a one-off engine for a key the user brought. A
+    user's key is never kept: its engine is closed when the job ends."""
+    global _SERVER_ENGINE
+    user_key = (key or "").strip()
+    if user_key:
+        engine = Engine(user_key)
+        try:
+            yield engine
+        finally:
+            engine.close()
+        return
+    with _ENGINE_LOCK:
+        if _SERVER_ENGINE is None:
+            _SERVER_ENGINE = Engine()
+    yield _SERVER_ENGINE
+
+
+def supports(preset: dict, mode: str) -> bool:
+    """Whether a preset runs in a mode: "scene" (photo scene), "own_image" or "video"."""
+    if mode not in preset["modes"]:
+        return False
+    return mode == "scene" or bool(preset.get("generic_prompt"))
 
 
 def _seed(seed: int | None) -> int:
@@ -87,11 +109,12 @@ def run_scene(job: Job, *, key: str | None, preset_id: str, refs: list[Path], su
     preset = get_preset(preset_id)
     fmt = ASPECTS[aspect]
     prompt = render(preset["scene_prompt"], subject=subject, aspect_words=fmt["words"],
-                    identity_notes=notes, wardrobe=wardrobe_for(preset, subject))
+                    identity_notes=notes, wardrobe=wardrobe_for(preset, subject), references=len(refs))
     seed = _seed(seed)
     job.params.update(prompt=prompt, seed_used=seed)
-    out = engine_for(key).scene(refs, prompt, fmt["scene"], seed, job.dir / "scene",
-                                lambda p, m: job.set(p, f"Building the scene: {m}"))
+    with engine_for(key) as engine:
+        out = engine.scene(refs, prompt, fmt["scene"], seed, job.dir / "scene",
+                           lambda p, m: job.set(p, f"Building the scene: {m}"))
     job.add_output("scene", out)
 
 
@@ -101,26 +124,28 @@ def run_effect(job: Job, *, key: str | None, preset_id: str, image: Path, source
     if source == "scene":
         template, selector = preset["effect_prompt"], ASPECTS[aspect]["selector"]
     else:
-        template = preset.get("generic_prompt") or ""
-        if not template:
-            raise ValueError(f"{preset['name']} needs its own scene; it cannot run on your image")
+        if not supports(preset, "own_image"):
+            raise ValueError(f"{preset['name']} needs its own scene, so it only runs from a photo")
+        template = preset["generic_prompt"]
         info = media.probe(image)
         selector = closest_selector(info["width"], info["height"])
     prompt = render(template, subject=subject)
+    seed = _seed(seed)
     job.params.update(prompt=prompt, selector=selector)
-    engine, seed = engine_for(key), _seed(seed)
-    last, mids = (None, [])
-    if source == "scene":
-        job.set(0.03, "Building the key frames")
-        last, mids = keyframes(engine, preset, image, subject, job.dir, seed,
-                               progress=lambda p, m: job.set(0.03, f"Building the key frames: {m}"))
-    if last:
-        job.add_output("last_frame", last)
-        out = _flf_with_retry(job, engine, image, last, mids, prompt, selector, quality,
-                              preset.get("duration", 6), seed, preset.get("effect_lora"), preset.get("flf_strengths"))
-    else:
-        out = _effect_with_retry(job, engine, image, prompt, selector, quality,
-                                 preset.get("duration", 6), seed, "effect", preset.get("effect_lora"))
+    with engine_for(key) as engine:
+        last, mids = (None, [])
+        if source == "scene":
+            job.set(0.03, "Building the key frames")
+            last, mids = keyframes(engine, preset, image, subject, job.dir, seed,
+                                   progress=lambda p, m: job.set(0.03, f"Building the key frames: {m}"))
+        if last:
+            job.add_output("last_frame", last)
+            out = _flf_with_retry(job, engine, image, last, mids, prompt, selector, quality,
+                                  preset.get("duration", 6), seed, preset.get("effect_lora"),
+                                  preset.get("flf_strengths"))
+        else:
+            out = _effect_with_retry(job, engine, image, prompt, selector, quality,
+                                     preset.get("duration", 6), seed, "effect", preset.get("effect_lora"))
     if preset.get("post") == "reverse":
         out = media.reverse(out, job.dir / "effect_reversed.mp4")
     job.add_output("video", out)
@@ -130,9 +155,9 @@ def run_effect(job: Job, *, key: str | None, preset_id: str, image: Path, source
 def run_splice(job: Job, *, key: str | None, preset_id: str, video: Path, seconds: float,
                subject: str, quality: str, audio_mode: str, seed: int | None) -> None:
     preset = get_preset(preset_id)
-    template = preset.get("generic_prompt") or ""
-    if "video" not in preset["modes"] or not template:
+    if not supports(preset, "video"):
         raise ValueError(f"{preset['name']} cannot be spliced into a video yet")
+    template = preset["generic_prompt"]
     info = media.probe(video)
     seconds = max(0.0, min(float(seconds), max(info["duration"] - 0.1, 0.0)))
     job.set(0.02, f"Grabbing the frame at {seconds:.2f} s")
@@ -141,8 +166,9 @@ def run_splice(job: Job, *, key: str | None, preset_id: str, video: Path, second
     prompt = render(template, subject=subject)
     selector = closest_selector(info["width"], info["height"])
     job.params.update(prompt=prompt, selector=selector, cut=seconds)
-    effect = _effect_with_retry(job, engine_for(key), frame, prompt, selector, quality,
-                                SPLICE_DURATION, _seed(seed), "effect", preset.get("effect_lora"))
+    with engine_for(key) as engine:
+        effect = _effect_with_retry(job, engine, frame, prompt, selector, quality,
+                                    SPLICE_DURATION, _seed(seed), "effect", preset.get("effect_lora"))
     job.add_output("effect", effect)
     job.set(0.97, "Splicing the effect into your video")
     final = media.splice(video, effect, seconds, job.dir / "final.mp4", audio_mode=audio_mode)
@@ -185,5 +211,5 @@ def keyframes(engine: Engine, preset: dict, first: Path, subject: str, out_dir: 
 
 def flf_size(selector: str, quality: str) -> tuple[int, int]:
     """One pass at the output size (the FLF graph has no x2 stage): 512p for Draft, 704p for HQ."""
-    short, long = (512, 896) if quality == "draft" else (704, 1280)
+    short, long = (704, 1280) if quality == "hq" else (512, 896)
     return (short, long) if selector.startswith("9:16") else (long, short)

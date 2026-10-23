@@ -1,12 +1,17 @@
 """Upload limits, size matching and the keyframe step that needs no Comfy call."""
 
+import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from vfx4all import media
-from vfx4all.config import VIDEO_LIMITS, check_video, closest_selector
-from vfx4all.pipeline import flf_size, keyframes
+from vfx4all.config import (HOSTED_VIDEO_LIMITS, IMAGE_LIMITS, VIDEO_LIMITS, check_image, check_video,
+                            closest_selector, video_limits)
+from vfx4all.engine import Engine
+from vfx4all.jobs import Job
+from vfx4all.pipeline import flf_size, keyframes, run_scene, supports
 from vfx4all.presets import get_preset
 
 from .helpers import make_image
@@ -32,6 +37,27 @@ class VideoLimitTests(unittest.TestCase):
             with self.subTest(limit=phrase):
                 self.assertIn(phrase, check_video(*args) or "")
 
+    def test_a_hosted_server_takes_shorter_lighter_clips(self):
+        with mock.patch.dict(os.environ, {"VFX4ALL_MODE": "hosted"}):
+            self.assertEqual(video_limits(), HOSTED_VIDEO_LIMITS)
+            self.assertIn("MB", check_video(1920, 1080, 10, (HOSTED_VIDEO_LIMITS["max_mb"] + 1) * MB) or "")
+        self.assertEqual(video_limits(), VIDEO_LIMITS)
+
+    def test_photo_limits(self):
+        self.assertIsNone(check_image(4032, 3024, 4 * MB))
+        self.assertIn("MB", check_image(4032, 3024, (IMAGE_LIMITS["max_mb"] + 1) * MB) or "")
+        self.assertIn("px", check_image(IMAGE_LIMITS["max_side"] + 1, 1000, MB) or "")
+
+
+class ModeTests(unittest.TestCase):
+    def test_presets_run_only_in_their_modes(self):
+        self.assertTrue(supports(get_preset("shockwave"), "video"))
+        self.assertTrue(supports(get_preset("colossus"), "scene"))
+        self.assertFalse(supports(get_preset("colossus"), "own_image"))
+        # Ant Size has a generic prompt but is listed for its own scene only.
+        self.assertFalse(supports(get_preset("ant-size"), "own_image"))
+        self.assertFalse(supports(get_preset("rewind"), "video"))
+
 
 class SizeTests(unittest.TestCase):
     def test_closest_selector(self):
@@ -44,8 +70,31 @@ class SizeTests(unittest.TestCase):
         self.assertEqual(flf_size("16:9 (Widescreen)", "draft"), (896, 512))
         self.assertEqual(flf_size("16:9 (Widescreen)", "hq"), (1280, 704))
         self.assertEqual(flf_size("9:16 (Portrait Widescreen)", "draft"), (512, 896))
+        self.assertEqual(flf_size("16:9 (Widescreen)", "unknown"), (896, 512))  # like the DFR graph: Draft
         for size in (flf_size("16:9 (Widescreen)", q) for q in ("draft", "hq")):
             self.assertTrue(all(side % 64 == 0 for side in size))
+
+
+class SceneTests(unittest.TestCase):
+    def test_the_scene_prompt_counts_the_photos_it_gets(self):
+        sent = {}
+
+        def fake_scene(engine, refs, prompt, size, seed, dest, progress):
+            sent[len(refs)] = prompt
+            out = dest.with_suffix(".png")
+            out.write_bytes(b"png")
+            return out
+
+        with mock.patch.object(Engine, "scene", fake_scene), tempfile.TemporaryDirectory() as tmp:
+            photos = [make_image(Path(tmp) / "front.png"), make_image(Path(tmp) / "side.png")]
+            for count in (1, 2):
+                job = Job(id=f"scene-test{count}", kind="scene")
+                job.dir.mkdir(parents=True, exist_ok=True)
+                run_scene(job, key=None, preset_id="walk-of-fire", refs=photos[:count], subject="man",
+                          notes="", aspect="16:9", seed=1)
+                self.assertIn("scene", job.outputs)
+        self.assertIn("Image 1 is a photo of the man.", sent[1])
+        self.assertIn("Image 1 and image 2 are two photos of the same man.", sent[2])
 
 
 class KeyframeTests(unittest.TestCase):

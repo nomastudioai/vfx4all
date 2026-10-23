@@ -1,29 +1,33 @@
 # Workflows
 
 Every file is a ComfyUI graph in API format, ready for `POST /api/v2/jobs` or the Comfy SDK.
-They come from the official Comfy Cloud templates (`image_qwen_image_2_1_image_edit`,
-`video_ltx2_5_dfr_i2v` and `video_ltx2_5_i2v`), flattened and trimmed: the prompt enhancers and
-preview nodes were removed and the prompt is wired straight into the text encoder. Only
-open-weights models run in them.
+They come from the official Comfy Cloud templates (`image_qwen_image_edit_2511_int8`,
+`video_ltx2_5_dfr_i2v`, `video_ltx2_5_i2v` and `video_ltx2_5_flf2v`), flattened and trimmed: the
+prompt enhancers and preview nodes were removed and the prompt is wired straight into the text
+encoder. Only open-weights models run in them.
 
 `apps/` holds one graph per preset for Comfy Cloud App Mode (photo, scene and effect in a single
 graph, built by `tools/build_app_graph.py`).
 
-## scene_qwen_image_2_1_edit.json
+## scene_qwen_image_edit_2511.json
 
 Builds the first frame of a preset: a new cinematic still with the face of the person in the
-reference photos.
+reference photos. It is the Qwen Image Edit 2511 template with an empty latent at the scene size
+instead of the encoded input, so the photos act as references (through the reference latents of
+`TextEncodeQwenImageEditPlus`) and the frame is drawn new. Until 22/10/2026 scenes ran on Qwen
+Image 2.1, whose license is non-commercial only; 2511 is Apache 2.0.
 
 | Node | Input | What VFX 4 All sets |
 |---|---|---|
-| `470` | `image` | Reference photo 1 |
-| `475` | `image` | Reference photo 2 (photo 1 again when there is only one) |
-| `459:474` | `prompt` | The preset's `scene_prompt`, rendered |
-| `459:456` | `width`, `height` | 1344x768 for 16:9, 768x1344 for 9:16 |
-| `459:458` | `seed` | Random unless given |
-| `461` | | Output image |
+| `1` | `image` | Reference photo 1 |
+| `16` | `image` | Reference photo 2 (removed, with its scale node `17`, when there is only one) |
+| `8` | `prompt` | The preset's `scene_prompt`, rendered; it names the photos as image 1 and image 2 |
+| `12` | `width`, `height` | 1344x768 for 16:9, 768x1344 for 9:16 |
+| `13` | `seed` | Random unless given |
+| `15` | | Output image |
 
-Models: `qwen_image_2.1_int8_convrot`, `qwen3vl_8b_int8_convrot`, `qwen_image_2.1_vae_bf16`.
+Models: `qwen_image_edit_2511_int8_convrot`, `qwen_2.5_vl_7b_fp8_scaled`, `qwen_image_vae`. Same
+sampler settings as the template: 40 steps, CFG 4, Euler.
 
 ## effect_ltx_2_5_dfr_i2v.json (default)
 

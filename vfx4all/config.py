@@ -12,7 +12,9 @@ WEB_DIR = ROOT / "web"
 RUNS_DIR = Path(os.environ.get("VFX4ALL_RUNS_DIR", str(ROOT / "runs")))
 UPLOADS_DIR = RUNS_DIR / "uploads"
 
-SCENE_WORKFLOW = WORKFLOWS_DIR / "scene_qwen_image_2_1_edit.json"
+# Scenes from a photo run on Qwen Image Edit 2511 (Apache 2.0). Qwen Image 2.1, used until
+# 22/10/2026, is licensed for non-commercial research only.
+SCENE_WORKFLOW = WORKFLOWS_DIR / "scene_qwen_image_edit_2511.json"
 EFFECT_WORKFLOW = WORKFLOWS_DIR / "effect_ltx_2_5_i2v.json"
 # LTX-2.5 DFR (Diffusion Fidelity Rendering): detailing keyframes plus a spatial x2 pass with the
 # Refine-Details IC-LoRA. Sharper faces and textures than the classic two pass i2v (round 4 A/B,
@@ -43,6 +45,51 @@ def load_dotenv(path: Path = ROOT / ".env") -> None:
 
 def api_key() -> str:
     return os.environ.get("COMFY_API_KEY", "").strip()
+
+
+def _int_env(name: str, default: int) -> int:
+    try:
+        return int(os.environ.get(name, "").strip() or default)
+    except ValueError:
+        return default
+
+
+# "local" (the default: one person on their own machine) or "hosted" (a server other people
+# open). Hosted mode ties jobs and files to a session cookie, lowers the video limits, caps the
+# jobs a session runs at once and deletes old runs. All of it is read at call time, like
+# effect_pipeline(), so a value set in .env counts.
+def mode() -> str:
+    return "hosted" if os.environ.get("VFX4ALL_MODE", "").strip().lower() == "hosted" else "local"
+
+
+def hosted() -> bool:
+    return mode() == "hosted"
+
+
+def access_code() -> str:
+    """When set, every POST needs it in the X-Access-Code header (for example a demo for judges)."""
+    return os.environ.get("VFX4ALL_ACCESS_CODE", "").strip()
+
+
+def daily_runs() -> int:
+    """Generations (scene, effect or splice jobs) the server accepts per UTC day; 0 is no cap."""
+    return _int_env("VFX4ALL_DAILY_RUNS", 0)
+
+
+def session_jobs() -> int:
+    """Jobs one browser session may have queued or running at once (hosted mode)."""
+    return _int_env("VFX4ALL_SESSION_JOBS", 2)
+
+
+def ip_jobs() -> int:
+    """Jobs one IP address may have queued or running at once (hosted mode). Higher than the
+    session cap, because people behind one office or venue network share an address."""
+    return _int_env("VFX4ALL_IP_JOBS", 6)
+
+
+def retention_hours() -> int:
+    """Runs and uploads older than this are deleted; 0 keeps them. Hosted mode defaults to 48."""
+    return _int_env("VFX4ALL_RETENTION_HOURS", 48 if hosted() else 0)
 
 
 # Output formats the user can pick for the image mode. "selector" is the
@@ -88,11 +135,20 @@ VIDEO_LIMITS = {
     "max_long_side": 4096,
     "max_mb": 500,
 }
+# A hosted server keeps the same quality limits but takes shorter, lighter clips.
+HOSTED_VIDEO_LIMITS = {**VIDEO_LIMITS, "max_seconds": 30, "max_mb": 100}
+
+# Photos: a phone photo is a few MB; anything over this is a scan or a mistake.
+IMAGE_LIMITS = {"max_mb": 20, "max_side": 8192}
 
 
-def check_video(width: int, height: int, seconds: float, size_bytes: int) -> str | None:
-    """Why a clip is outside VIDEO_LIMITS, or None when it is fine."""
-    lim = VIDEO_LIMITS
+def video_limits() -> dict:
+    return HOSTED_VIDEO_LIMITS if hosted() else VIDEO_LIMITS
+
+
+def check_video(width: int, height: int, seconds: float, size_bytes: int, limits: dict | None = None) -> str | None:
+    """Why a clip is outside the video limits, or None when it is fine."""
+    lim = limits or video_limits()
     if size_bytes > lim["max_mb"] * 1024 * 1024:
         return f"That clip is over {lim['max_mb']} MB. Trim or compress it first."
     if seconds < lim["min_seconds"]:
@@ -103,6 +159,16 @@ def check_video(width: int, height: int, seconds: float, size_bytes: int) -> str
         return f"That clip is {width}x{height}. Use 480p or more (short side of at least {lim['min_short_side']} px)."
     if max(width, height) > lim["max_long_side"]:
         return f"That clip is {width}x{height}. Use 4K or less (long side of up to {lim['max_long_side']} px)."
+    return None
+
+
+def check_image(width: int, height: int, size_bytes: int) -> str | None:
+    """Why a photo is outside IMAGE_LIMITS, or None when it is fine."""
+    lim = IMAGE_LIMITS
+    if size_bytes > lim["max_mb"] * 1024 * 1024:
+        return f"That photo is over {lim['max_mb']} MB. Export a smaller JPG first."
+    if max(width, height) > lim["max_side"]:
+        return f"That photo is {width}x{height}. Use one of up to {lim['max_side']} px on the long side."
     return None
 
 

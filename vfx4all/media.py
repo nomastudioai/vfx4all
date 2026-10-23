@@ -29,22 +29,35 @@ def _run(args: list[str]) -> subprocess.CompletedProcess:
     return proc
 
 
+def _rotation(info: str) -> int:
+    """Display rotation in degrees. Phones store a vertical clip as landscape pixels plus a
+    rotation, and ffmpeg turns the frames upright when it decodes them."""
+    found = (re.search(r"displaymatrix: rotation of (-?\d+(?:\.\d+)?) degrees", info)
+             or re.search(r"rotate\s*:\s*(-?\d+)", info))
+    return int(round(float(found[1]))) % 360 if found else 0
+
+
 def probe(path: Path) -> dict:
-    """Duration, size, frame rate and audio presence, read from `ffmpeg -i`."""
+    """Duration, upright size, frame rate and audio presence, read from `ffmpeg -i`."""
     proc = subprocess.run([FFMPEG, "-hide_banner", "-i", str(path)], capture_output=True, text=True,
                           encoding="utf-8", errors="replace")
     info = proc.stderr
     video = re.search(r"Stream #\S+.*?Video: .*?(\d{2,5})x(\d{2,5})", info)
     if not video:
         raise MediaError(f"No picture found in {path.name}")
+    width, height = int(video[1]), int(video[2])
+    rotation = _rotation(info)
+    if rotation in (90, 270):
+        width, height = height, width
     duration = re.search(r"Duration: (\d+):(\d+):(\d+(?:\.\d+)?)", info)
     seconds = (int(duration[1]) * 3600 + int(duration[2]) * 60 + float(duration[3])) if duration else 0.0
     fps = re.search(r"(\d+(?:\.\d+)?) fps", info)
     is_image = path.suffix.lower() in {".png", ".jpg", ".jpeg", ".webp"}
     return {
         "kind": "image" if is_image else "video",
-        "width": int(video[1]),
-        "height": int(video[2]),
+        "width": width,
+        "height": height,
+        "rotation": rotation,
         "duration": 0.0 if is_image else round(seconds, 3),
         "fps": float(fps[1]) if fps else 24.0,
         "has_audio": "Audio:" in info,
@@ -122,7 +135,13 @@ def splice(source: Path, effect: Path, seconds: float, out: Path, *, audio_mode:
                  f"{src_audio}atrim=end={cut:.4f},asetpts=PTS-STARTPTS,{audio_fmt},apad=whole_dur={cut:.4f}[aa];"
                  + effect_audio +
                  "[va][aa][vb][ab]concat=n=2:v=1:a=1[v][a]")
+    # A phone clip is decoded upright, but ffmpeg copies its rotation flag to the output, which
+    # would turn the upright result sideways again in players. A copy remux drops the flag.
+    encoded = out.with_name(f"{out.stem}_rotated{out.suffix}") if src["rotation"] else out
     _run([*inputs, "-filter_complex", graph, "-map", "[v]", "-map", "[a]",
           "-r", f"{fps:g}", "-c:v", "libx264", "-crf", "18", "-preset", "medium", "-pix_fmt", "yuv420p",
-          "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", str(out)])
+          "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", str(encoded)])
+    if encoded != out:
+        _run(["-display_rotation", "0", "-i", str(encoded), "-c", "copy", "-movflags", "+faststart", str(out)])
+        encoded.unlink(missing_ok=True)
     return out

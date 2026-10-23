@@ -1,74 +1,161 @@
 {
-  "2": {
-    "_meta": {
-      "title": "Save Image (Advanced)"
-    },
-    "class_type": "SaveImageAdvanced",
+  "1": {
+    "class_type": "LoadImage",
     "inputs": {
-      "filename_prefix": "vfx4all/zero-gravity_scene",
-      "format": "png",
-      "format.bit_depth": "8-bit",
-      "format.input_color_space": "sRGB",
-      "images": [
-        "15",
+      "image": "example.png"
+    },
+    "_meta": {
+      "title": "Your photo (front view)"
+    }
+  },
+  "10": {
+    "class_type": "FluxKontextImageScale",
+    "inputs": {
+      "image": [
+        "1",
         0
       ]
     }
   },
-  "1": {
-    "_meta": {
-      "title": "Your photo (front view)"
-    },
-    "class_type": "LoadImage",
-    "inputs": {
-      "image": "example.png"
-    }
-  },
   "11": {
-    "_meta": {
-      "title": "Load Diffusion Model"
-    },
     "class_type": "UNETLoader",
     "inputs": {
-      "unet_name": "qwen_image_2.1_int8_convrot.safetensors",
+      "unet_name": "qwen_image_edit_2511_int8_convrot.safetensors",
       "weight_dtype": "default"
     }
   },
   "12": {
-    "_meta": {
-      "title": "Load CLIP"
-    },
     "class_type": "CLIPLoader",
     "inputs": {
-      "clip_name": "qwen3vl_8b_int8_convrot.safetensors",
-      "device": "default",
-      "type": "qwen_image"
+      "clip_name": "qwen_2.5_vl_7b_fp8_scaled.safetensors",
+      "type": "qwen_image",
+      "device": "default"
     }
   },
   "13": {
-    "_meta": {
-      "title": "Load VAE"
-    },
     "class_type": "VAELoader",
     "inputs": {
-      "vae_name": "qwen_image_2.1_vae_bf16.safetensors"
+      "vae_name": "qwen_image_vae.safetensors"
     }
   },
   "14": {
-    "_meta": {
-      "title": "Empty Latent Image"
-    },
-    "class_type": "EmptyLatentImage",
+    "class_type": "ModelSamplingAuraFlow",
     "inputs": {
-      "batch_size": 1,
-      "height": 768,
-      "width": 1344
+      "model": [
+        "11",
+        0
+      ],
+      "shift": 3.1
     }
   },
   "15": {
-    "_meta": {
-      "title": "VAE Decode"
+    "class_type": "CFGNorm",
+    "inputs": {
+      "model": [
+        "14",
+        0
+      ],
+      "strength": 1
+    }
+  },
+  "3": {
+    "class_type": "TextEncodeQwenImageEditPlus",
+    "inputs": {
+      "clip": [
+        "12",
+        0
+      ],
+      "prompt": "Create a new cinematic film still in 16:9 landscape format. Image 1 is a photo of the person. Use it only as the identity reference. The person is the only person in the new still, with exactly their face, eyes, nose, jaw, hairline, hairstyle, hair colour, skin tone and build. The clothing, the place and the light come only from this description. The person stands in the center aisle of an old library, towering dark wooden bookshelves on both sides receding into the distance, wearing a cream cable-knit sweater, dark green trousers and brown leather boots, looking down at their open hands. Warm light from brass reading lamps and shafts of late daylight from a high window cut through floating dust. A wooden chair and a small stack of books stand on the floor nearby. Wide symmetrical shot at eye level down the aisle, the full body in the center filling about forty percent of the frame height. Cinematic photography, warm amber tones, volumetric light shafts. Correct human anatomy, natural skin texture, sharp focus on the person, book spines plain and unlettered throughout.",
+      "vae": [
+        "13",
+        0
+      ],
+      "image1": [
+        "10",
+        0
+      ]
     },
+    "_meta": {
+      "title": "Scene prompt"
+    }
+  },
+  "16": {
+    "class_type": "TextEncodeQwenImageEditPlus",
+    "inputs": {
+      "clip": [
+        "12",
+        0
+      ],
+      "prompt": "",
+      "vae": [
+        "13",
+        0
+      ],
+      "image1": [
+        "10",
+        0
+      ]
+    }
+  },
+  "17": {
+    "class_type": "FluxKontextMultiReferenceLatentMethod",
+    "inputs": {
+      "conditioning": [
+        "3",
+        0
+      ],
+      "reference_latents_method": "index_timestep_zero"
+    }
+  },
+  "18": {
+    "class_type": "FluxKontextMultiReferenceLatentMethod",
+    "inputs": {
+      "conditioning": [
+        "16",
+        0
+      ],
+      "reference_latents_method": "index_timestep_zero"
+    }
+  },
+  "19": {
+    "class_type": "EmptySD3LatentImage",
+    "inputs": {
+      "width": 1344,
+      "height": 768,
+      "batch_size": 1
+    },
+    "_meta": {
+      "title": "Scene size"
+    }
+  },
+  "4": {
+    "class_type": "KSampler",
+    "inputs": {
+      "model": [
+        "15",
+        0
+      ],
+      "positive": [
+        "17",
+        0
+      ],
+      "negative": [
+        "18",
+        0
+      ],
+      "latent_image": [
+        "19",
+        0
+      ],
+      "seed": 0,
+      "steps": 40,
+      "cfg": 4,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "denoise": 1
+    }
+  },
+  "20": {
     "class_type": "VAEDecode",
     "inputs": {
       "samples": [
@@ -81,78 +168,21 @@
       ]
     }
   },
-  "4": {
-    "_meta": {
-      "title": "KSampler"
-    },
-    "class_type": "KSampler",
+  "2": {
+    "class_type": "SaveImage",
     "inputs": {
-      "cfg": 1,
-      "denoise": 1,
-      "latent_image": [
-        "14",
+      "images": [
+        "20",
         0
       ],
-      "model": [
-        "16",
-        0
-      ],
-      "negative": [
-        "3",
-        1
-      ],
-      "positive": [
-        "3",
-        0
-      ],
-      "sampler_name": "euler",
-      "scheduler": "simple",
-      "seed": 0,
-      "steps": 25
-    }
-  },
-  "16": {
-    "_meta": {
-      "title": "Qwen Image 2.1 Cache"
-    },
-    "class_type": "QwenImage21Cache",
-    "inputs": {
-      "device": "auto",
-      "dtype": "default",
-      "model": [
-        "11",
-        0
-      ]
-    }
-  },
-  "3": {
-    "_meta": {
-      "title": "Text Encode Qwen Image 2.1"
-    },
-    "class_type": "TextEncodeQwenImage21",
-    "inputs": {
-      "clip": [
-        "12",
-        0
-      ],
-      "images.image_1": [
-        "1",
-        0
-      ],
-      "negative_prompt": "",
-      "prompt": "Create a new cinematic film still in 16:9 landscape format. The person from the reference images is the only person in it: keep their exact face, eyes, nose, jaw, hairline and hairstyle, skin tone and build. Take only the face and hair from the references; the clothing, background and lighting are all new. The person stands in the center aisle of an old library, towering dark wooden bookshelves on both sides receding into the distance, wearing a cream cable-knit sweater, dark green trousers and brown leather boots, looking down at their open hands. Warm light from brass reading lamps and shafts of late daylight from a high window cut through floating dust. A wooden chair and a small stack of books stand on the floor nearby. Wide symmetrical shot at eye level down the aisle, the full body in the center filling about forty percent of the frame height. Cinematic photography, warm amber tones, volumetric light shafts. Correct human anatomy, natural skin texture, sharp focus on the person, book spines plain and unlettered throughout.",
-      "resolution": 0,
-      "vae": [
-        "13",
-        0
-      ]
+      "filename_prefix": "vfx4all/zero-gravity_scene"
     }
   },
   "5": {
     "class_type": "SplitImageWithAlpha",
     "inputs": {
       "image": [
-        "15",
+        "20",
         0
       ]
     },

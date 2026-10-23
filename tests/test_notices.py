@@ -11,8 +11,6 @@ FAMILIES = {
     "ltx-2.5-22b-ic-lora-refine-details": "Lightricks/LTX-2.5-22b-IC-LoRA-Refine-Details",
     "ltx-2.5-": "Lightricks/LTX-2.5",
     "gemma4-12b": "Gemma 4 12B",
-    "qwen_image_2.1": "Qwen/Qwen-Image-2.1",
-    "qwen3vl_8b": "Qwen3-VL 8B",
     "qwen_image_edit_2511": "Qwen/Qwen-Image-Edit-2511",
     "qwen_image_vae": "Qwen/Qwen-Image)",
     "qwen_2.5_vl_7b": "Qwen/Qwen2.5-VL-7B-Instruct",

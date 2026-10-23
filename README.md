@@ -5,8 +5,8 @@ film-grade VFX shot with sound: a walk through fire, a body turning to liquid ch
 a city folding overhead.
 
 VFX 4 All is an open source app built on the **Comfy Developer Platform**. It runs open-weights
-models (LTX-2.5 and Qwen Image 2.1) through the official Comfy SDK, either on Comfy Cloud or on your
-own ComfyUI.
+models (LTX-2.5 and Qwen Image Edit 2511) through the official Comfy SDK, either on Comfy Cloud or on
+your own ComfyUI.
 
 | Walk of Fire | Liquid Chrome | Synchronized | The Fold |
 |---|---|---|---|
@@ -34,7 +34,7 @@ Comfy account and run it with your own credits; nobody hands an API key to anyon
 ## How it works
 
 ```
-photo(s) --> Qwen Image 2.1 Edit --> first frame of the preset's scene --+
+photo(s) --> Qwen Image Edit 2511 --> first frame of the preset's scene --+
                                                                          +--> LTX-2.5 DFR image to video --> shot with audio
 your image (as it is) ---------------------------------------------------+
                                                                          |
@@ -51,9 +51,14 @@ first frame --> Qwen Image Edit 2511 (or a mirror) --> last frame --> LTX-2.5 fi
   also ask for a last frame (`last_frame_prompt`, edited from the first frame with Qwen Image Edit
   2511, or `last_frame_mode: "mirror"`) to be animated first-to-last, a LoRA from the Comfy Cloud
   catalog (`effect_lora`), or to be played backward after rendering (`post: "reverse"`).
-* `vfx4all/` is a small FastAPI server. It submits the graphs with `comfy-sdk`, follows the jobs,
-  checks every take (a black or NaN take is retried with the next seed) and splices videos with ffmpeg.
-* `web/` is the interface: plain HTML, CSS and JavaScript, no build step.
+* `vfx4all/` is a small FastAPI server. It submits the graphs with `comfy-sdk`, follows the jobs
+  (and cancels them), checks every take (a black or NaN take is retried with the next seed),
+  repeats the uploads and downloads that time out, and splices videos with ffmpeg.
+* `web/` is the interface: plain HTML, CSS and JavaScript, no build step. It shows the prompt that
+  was sent, keeps your results across reloads and compares a spliced clip with your original.
+* `tools/build_app_graph.py` builds the App Mode graphs and `tools/batch_presets.py` renders test
+  versions of the presets; `tools/dev/` keeps the A/B scripts behind the choices in
+  [workflows/README.md](workflows/README.md).
 
 ## Run it
 
@@ -78,10 +83,11 @@ ffmpeg ships inside the `imageio-ffmpeg` wheel, so there is nothing else to inst
 ```
 
 The tests run offline in a few seconds. They check every preset and graph, the App Mode builder,
-the upload limits, the ffmpeg steps, the HTTP API, and that every model the graphs load is listed
-in `THIRD_PARTY_NOTICES.md`. They never reach Comfy Cloud (the test package
-blanks `COMFY_API_KEY` before the app loads), so they cost nothing. Only a real render tells you
-whether a prompt works.
+the upload limits, the ffmpeg steps (phone clips shot vertical included), the HTTP API with its
+hosted mode, access code and daily cap, the job queue, and that every model the graphs load is
+listed in `THIRD_PARTY_NOTICES.md`. They never reach Comfy Cloud (the test package blanks
+`COMFY_API_KEY` before the app loads), so they cost nothing. GitHub Actions runs them on Linux and
+Windows with Python 3.10 and 3.12. Only a real render tells you whether a prompt works.
 
 ## Who pays for the generations
 
@@ -92,8 +98,9 @@ Every generation bills the Comfy Cloud workspace that owns the API key it runs w
 * **Sharing it without keys:** link each preset to its Comfy Cloud App Mode app (the `comfy_app`
   field of the preset). Visitors sign in to Comfy and their runs bill their own account.
 * **Hosting it for others:** visitors can paste their own key in **Advanced**. The key stays in their
-  browser and travels in the `X-Comfy-Key` header, so their runs bill their workspace. If they leave
-  it empty, the server key from `.env` is used, so put limits in front of a public deployment.
+  browser and travels in the `X-Comfy-Key` header, so their runs bill their workspace; the server
+  uses it for that job only and never stores it. If they leave it empty, the server key from `.env`
+  is used, so read [Hosting it](#hosting-it) before you expose the app.
 * **Your own GPU, no cloud credits:** the models are open weights, so the same app can drive your own
   ComfyUI through [comfy-api-proxy](https://github.com/Comfy-Org/comfy-api-proxy). Set
   `COMFY_BASE_URL=http://127.0.0.1:8189` in `.env`.
@@ -136,20 +143,27 @@ Add a JSON file to `presets/`:
   "modes": ["scene", "own_image", "video"],
   "duration": 6,
   "wardrobe": {"man": "...", "woman": "...", "person": "..."},
-  "scene_prompt": "Create a new cinematic film still in {aspect_words} format. The {subject} from the reference images ...",
+  "scene_prompt": "Create a new cinematic film still in {aspect_words} format. {references} The {subject} is the only person in the new still, with exactly {their} face, eyes, nose, jaw, hairline, hairstyle, hair colour{facial_hair}, skin tone and build{identity_notes}. The clothing, the place and the light come only from this description. ...",
   "effect_prompt": "Use the provided start image as the first frame. ...",
   "generic_prompt": "Use the provided start image as the first frame. ..."
 }
 ```
 
 Placeholders: `{subject}` (man, woman or person), `{their}`, `{Their}`, `{them}`, `{wardrobe}`,
-`{aspect_words}` and `{identity_notes}`. Prompts avoid subject pronouns so the verbs agree for all
-three subjects. A thumbnail at `web/thumbs/<id>.jpg` and a short loop at `web/previews/<id>.mp4`
-make the card.
+`{aspect_words}`, `{identity_notes}`, `{references}` and `{facial_hair}`. `{references}` introduces
+the photos the way Qwen Image Edit 2511 reads them ("Image 1 and image 2 are two photos of the same
+man. Use them only as the identity reference.", or the one-photo version), and `{facial_hair}` adds
+", facial hair" for a man only, so a woman's scene is never asked to keep a beard. Prompts avoid
+subject pronouns so the verbs agree for all three subjects. A thumbnail at `web/thumbs/<id>.jpg` and
+a short loop at `web/previews/<id>.mp4` make the card.
 
 Prompting notes that made these presets work: describe the state the shot starts in rather than
 the transition into it, give every effect a sound, lock counts and scale with a named rule (for
 example "CLONE COUNT LOCK: seven figures in the final frame"), and keep every instruction positive.
+For scenes, name each photo with its role and keep the identity block above as it is: with the old
+wording ("the person from the reference images") Qwen Image Edit 2511 exaggerated grey hair and
+earrings. In wide full-body shots the face gets small and likeness drops, so frame the subject
+closer when the effect allows it.
 
 ## Quality
 
@@ -190,21 +204,41 @@ What VFX 4 All does not do well yet, from our own test runs:
 * **Comfy Cloud model names.** The graphs load models by their Comfy Cloud catalog names. On your
   own ComfyUI you need the same files under the same names, and a rename in the catalog breaks a
   graph until it is updated.
-* **Commercial use is limited by the models.** Photo scenes come from Qwen Image 2.1, whose license
-  allows non-commercial research and evaluation only, and LTX-2.5 is free only for entities under
-  USD 10,000,000 in annual revenue. The Hologram preset uses a style LoRA with no published license.
-  Details in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+* **Commercial use depends on the models.** Photo scenes and last frames come from Qwen Image Edit
+  2511 (Apache 2.0). LTX-2.5 is free only for entities under USD 10,000,000 in annual revenue. The
+  Hologram preset uses a style LoRA with no published license. Details in
+  [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 * **No cost display.** The app does not estimate what a run costs. Check the usage of your Comfy
   Cloud workspace.
-* **A local app, not a hosted service.** The server binds to 127.0.0.1, has no login and no rate
-  limit, runs three jobs at a time and never deletes uploads or results from `runs/`. Finished jobs
-  survive a restart through their `job.json`; running ones do not. Put a login and limits in front
-  before you expose it.
+* **One server, one process.** Jobs live in memory and in their `job.json`, so run a single
+  instance. Finished jobs survive a restart; a job the restart interrupted is marked failed with the
+  ids of its Comfy Cloud jobs, whose results may still be in your Comfy history.
+
+## Hosting it
+
+By default VFX 4 All is a local app: it listens on 127.0.0.1, has no login and keeps every run in
+`runs/`. To open it to other people, set `VFX4ALL_MODE=hosted` (see `.env.example`):
+
+* Jobs, uploads and results belong to the browser session that made them; nobody else can list or
+  open them, and `job.json` and error logs are never served.
+* Clips are capped at 30 s and 100 MB, a session runs two jobs at a time
+  (`VFX4ALL_SESSION_JOBS`) and one network six (`VFX4ALL_IP_JOBS`), and runs and uploads older
+  than 48 hours are deleted (`VFX4ALL_RETENTION_HOURS`).
+* `VFX4ALL_ACCESS_CODE` asks for a code before any upload or generation, for example a demo for a
+  jury. Visitors enter it in **Advanced**.
+* `VFX4ALL_DAILY_RUNS` caps the generations the server accepts per UTC day, so a shared link can
+  never spend more than you planned. Set it whenever the server key pays.
+
+The `Dockerfile` builds that setup (hosted mode, port 8420, runs on a `/data/runs` volume). Put it
+behind a reverse proxy with HTTPS and set `FORWARDED_ALLOW_IPS` to the proxy's address. The server
+sends a strict Content Security Policy and serves the fonts itself, so the page loads nothing from
+other sites. If you host it for others, the LTX license asks you to put its Section 4 and the
+Acceptable Use Policy into your own terms (see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)).
 
 ## Consent
 
-Only use photos and videos of people who agreed to it. The app sends the photos you upload to the
-Comfy workspace of the key in use.
+Only use photos and videos of people who agreed to it. The app asks you to confirm that before
+every upload, and sends what you upload to the Comfy workspace of the key in use.
 
 ## License
 

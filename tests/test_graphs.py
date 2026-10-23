@@ -49,9 +49,11 @@ class WorkflowFileTests(unittest.TestCase):
         scene = load(SCENE_WORKFLOW)
         expect(self, scene, engine.SCENE_REF_1, "LoadImage")
         expect(self, scene, engine.SCENE_REF_2, "LoadImage")
-        expect(self, scene, engine.SCENE_TEXT, "TextEncodeQwenImage21")
-        expect(self, scene, engine.SCENE_LATENT, "EmptyLatentImage")
+        expect(self, scene, engine.SCENE_TEXT, "TextEncodeQwenImageEditPlus")
+        expect(self, scene, engine.SCENE_NEGATIVE, "TextEncodeQwenImageEditPlus")
+        expect(self, scene, engine.SCENE_LATENT, "EmptySD3LatentImage")
         expect(self, scene, engine.SCENE_SAMPLER, "KSampler")
+        expect(self, scene, engine.SCENE_SAVE, "SaveImage")
 
         classic = load(EFFECT_WORKFLOW)
         expect(self, classic, engine.EFFECT_IMAGE, "LoadImage")
@@ -85,6 +87,12 @@ class WorkflowFileTests(unittest.TestCase):
         expect(self, edit, "8", "TextEncodeQwenImageEditPlus")
         expect(self, edit, "13", "KSampler")
         expect(self, edit, "15", "SaveImage")
+
+    def test_scenes_use_a_model_licensed_for_commercial_use(self):
+        # Qwen Image 2.1 is non-commercial only; scenes moved to Qwen Image Edit 2511 (Apache 2.0).
+        text = SCENE_WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("qwen_image_edit_2511", text)
+        self.assertNotIn("qwen_image_2.1", text)
 
     def test_effect_graphs_use_the_int8_builds(self):
         # bf16 transformer and encoder inside DFR came back black on every seed (round 5).
@@ -129,6 +137,15 @@ class GraphBuilderTests(unittest.TestCase):
     def test_flf_without_middle_guides_matches_the_file(self):
         self.assertEqual(engine.flf_graph(), load(FLF_WORKFLOW))
 
+    def test_scene_graph_with_one_photo_drops_the_second_slot(self):
+        two, one = engine.scene_graph(), engine.scene_graph(two_refs=False)
+        self.assertEqual(dangling(two), [])
+        self.assertEqual(dangling(one), [])
+        self.assertNotIn(engine.SCENE_REF_2, one)
+        for node in (engine.SCENE_TEXT, engine.SCENE_NEGATIVE):
+            self.assertNotIn("image2", one[node]["inputs"])
+            self.assertEqual(two[node]["inputs"]["image2"], ["17", 0])
+
     def test_edit_graph_with_a_face_reference(self):
         graph = engine.edit_graph(with_face=True)
         self.assertEqual(dangling(graph), [])
@@ -154,6 +171,9 @@ class AppModeGraphTests(unittest.TestCase):
                 self.assertEqual(len(noises), 3)
                 self.assertTrue(all(n["inputs"]["noise_seed"] == seed for n in noises))
                 self.assertEqual(len([v for v in graph.values() if v["class_type"] == "LoadImage"]), 1)
+                prompt = graph[str(build_app_graph.SCENE_PROMPT)]["inputs"]["prompt"]
+                self.assertIn("Image 1 is a photo of the person.", prompt)  # App Mode takes one photo
+                self.assertNotIn("image 2", prompt)
 
     def test_presets_that_need_more_than_one_graph_are_refused(self):
         for preset in load_presets():
