@@ -17,38 +17,32 @@ links below are the source of truth, and this summary is not legal advice.
 | Effect (every preset) | LTX-2.5 22B distilled transformer (bf16 and int8), video VAE, audio VAE, spatial and temporal x2 latent upscalers ([Lightricks/LTX-2.5](https://huggingface.co/Lightricks/LTX-2.5)) | Lightricks | [LTX-2.x Community License Agreement](https://github.com/Lightricks/LTX-2/blob/main/LICENSE-2_x), with the [LTX Acceptable Use Policy](https://static.lightricks.com/legal/ltx-acceptable-use-policy.pdf) |
 | Effect detail pass (DFR) | LTX-2.5 22B IC-LoRA Refine-Details ([Lightricks/LTX-2.5-22b-IC-LoRA-Refine-Details](https://huggingface.co/Lightricks/LTX-2.5-22b-IC-LoRA-Refine-Details)) | Lightricks | LTX-2.x Community License Agreement |
 | Effect text encoder | Gemma 4 12B with LTX-2.5 projections, int8 (inside Lightricks/LTX-2.5) | Google DeepMind (Gemma 4), modified and distributed by Lightricks | Gemma 4 is [Apache 2.0](https://ai.google.dev/gemma/docs/gemma_4_license). The model card does not give this modified file a license of its own, so treat it as covered by the LTX-2.x license too |
-| Scene from a photo | Qwen Image 2.1 and its VAE ([Qwen/Qwen-Image-2.1](https://huggingface.co/Qwen/Qwen-Image-2.1), ComfyUI files by Comfy-Org) | Qwen team, Hangzhou Tongyi Laboratory Technology Co., Ltd. | [Qwen RESEARCH LICENSE AGREEMENT](https://huggingface.co/Qwen/Qwen-Image-2.1/blob/main/LICENSE): **non-commercial use only** |
-| Scene text encoder | Qwen3-VL 8B Instruct, int8 ([Comfy-Org/Qwen3-VL](https://huggingface.co/Comfy-Org/Qwen3-VL), from [Qwen/Qwen3-VL-8B-Instruct](https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct)) | Qwen team | Apache 2.0 |
-| Last frames (Ant Size, Comic Panel) | Qwen Image Edit 2511, int8 ([Qwen/Qwen-Image-Edit-2511](https://huggingface.co/Qwen/Qwen-Image-Edit-2511), ComfyUI files by Comfy-Org) | Qwen team | Apache 2.0 |
-| Last frames | Qwen Image VAE ([Qwen/Qwen-Image](https://huggingface.co/Qwen/Qwen-Image)) | Qwen team | Apache 2.0 |
-| Last frames text encoder | Qwen2.5-VL 7B Instruct, fp8 ([Qwen/Qwen2.5-VL-7B-Instruct](https://huggingface.co/Qwen/Qwen2.5-VL-7B-Instruct)) | Qwen team | Apache 2.0 |
+| Scene from a photo, and the last frames of Ant Size and Comic Panel | Qwen Image Edit 2511, int8 ([Qwen/Qwen-Image-Edit-2511](https://huggingface.co/Qwen/Qwen-Image-Edit-2511), ComfyUI files by Comfy-Org) | Qwen team | Apache 2.0 |
+| Scenes and last frames | Qwen Image VAE ([Qwen/Qwen-Image](https://huggingface.co/Qwen/Qwen-Image)) | Qwen team | Apache 2.0 |
+| Scene and last frame text encoder | Qwen2.5-VL 7B Instruct, fp8 ([Qwen/Qwen2.5-VL-7B-Instruct](https://huggingface.co/Qwen/Qwen2.5-VL-7B-Instruct)) | Qwen team | Apache 2.0 |
 | Stop Motion, Claymation, Paint World, Anime Shift | LTX 2.3 style LoRAs Cozy Felt, Clay Mation, Fantasy Painterly and Fantasy Anime (Hugging Face user vrgamedevgirl84; the same files on Civitai: [2525862](https://civitai.com/models/2525862), [2526420](https://civitai.com/models/2526420), [2528481](https://civitai.com/models/2528481), [2552450](https://civitai.com/models/2552450)) | vrgamedevgirl | No license file. Civitai permissions: images may be sold and the LoRA may run on paid services; the LoRA and merges of it may not be sold or shared. Base model LTX-2.3 is under the [LTX-2 Community License Agreement](https://github.com/Lightricks/LTX-2/blob/main/LICENSE-2) |
 | Hologram | LTX 2.3 Cinematic Sci-fi Cyberpunk style LoRA (Hugging Face user vrgamedevgirl84) | vrgamedevgirl | **No license found** on Hugging Face or Civitai |
 
 What this means in practice:
 
-* **Results that start from a photo scene are for non-commercial use.** Qwen Image 2.1 builds every
-  photo scene, and its license allows research and evaluation only; commercial use needs a separate
-  license from the Qwen team. The "your image" and video modes do not use it.
+* **The image models are Apache 2.0.** Photo scenes and last frames come from Qwen Image Edit 2511.
+  Until 22/10/2026 scenes came from Qwen Image 2.1, whose license allows non-commercial research
+  only; results made with versions before 0.2.0 carry that limit.
 * **LTX-2.5 is free for entities under USD 10,000,000 in annual revenue**, counted together with
   affiliates. Above that, Lightricks requires a paid Commercial Use Agreement. If you host VFX 4 All
   as a service for other people, the LTX license asks you to put its Section 4 and the Acceptable Use
   Policy into your own terms and to pass on a copy of the license. Keep watermarks, metadata,
   provenance and AI disclosure features in what you publish, and follow the AI labelling laws that
   apply to you.
-* **The Hologram LoRA has no license.** Until its author publishes one, treat Hologram as a test.
-
-Notice for Qwen Image 2.1, as its license asks:
-
-> Qwen is licensed under the Qwen RESEARCH LICENSE AGREEMENT, Copyright (c) 2026 Hangzhou Tongyi
-> Laboratory Technology Co., Ltd. All Rights Reserved.
+* **The Hologram LoRA has no published license.** Check with its author before you use Hologram
+  results commercially.
 
 ## ComfyUI workflow templates
 
 The graphs in `workflows/` (and the App Mode graphs built from them in `workflows/apps/`) are
 derived from these templates of [Comfy-Org/workflow_templates](https://github.com/Comfy-Org/workflow_templates):
-`image_qwen_image_2_1_image_edit`, `video_ltx2_5_dfr_i2v`, `video_ltx2_5_i2v`, `video_ltx2_5_flf2v`
-and `image_qwen_image_edit_2511_int8`. They are used under this license:
+`image_qwen_image_edit_2511_int8` (scenes and last frames), `video_ltx2_5_dfr_i2v`, `video_ltx2_5_i2v`
+and `video_ltx2_5_flf2v`. They are used under this license:
 
 ```
 MIT License
@@ -101,8 +95,11 @@ the wheel. Set `VFX4ALL_FFMPEG` to use any other ffmpeg.
 
 ## Fonts
 
-The web app loads [Montserrat](https://fonts.google.com/specimen/Montserrat) from Google Fonts. It is
-not included in this repository. Montserrat is licensed under the SIL Open Font License 1.1.
+The web app serves [Montserrat](https://fonts.google.com/specimen/Montserrat) itself, so pages make no
+request to Google: `web/fonts/montserrat-latin.woff2` and `web/fonts/montserrat-latin-ext.woff2`, the
+variable font files Google Fonts serves (v31). Montserrat is Copyright 2024 The Montserrat.Git Project
+Authors and licensed under the SIL Open Font License 1.1, included as `web/fonts/OFL.txt`. The OFL,
+not MIT, covers those files.
 
 ## NoMa Studio AI brand
 
