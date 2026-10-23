@@ -2,10 +2,12 @@
 
     python tools/batch_presets.py --experimental --out D:/.../pruebas_ltx --tag v05 --workers 3
     python tools/batch_presets.py ice-age gold-touch --out ... --tag v05
+    python tools/batch_presets.py --all --quality hq --out ... --tag v07
 
 Casting is a local test setting, not part of the presets: CAST maps a subject to its reference
 photos and identity notes. Pass --cast-file with a JSON file to change it. A failed take (black or
-NaN) is retried with the next seed, like the app does.
+NaN) is retried with the next seed, like the app does. Every Comfy Cloud job the run submits is
+logged with its execution time, which is what Comfy Cloud bills for open-weights graphs.
 """
 
 from __future__ import annotations
@@ -28,6 +30,7 @@ from vfx4all import media  # noqa: E402
 from vfx4all.config import (ASPECTS, BLACK_LUMA_THRESHOLD, MAX_RETRIES, QUALITY_MEGAPIXELS,  # noqa: E402
                             WEB_DIR, load_dotenv)
 from vfx4all.engine import Engine  # noqa: E402
+from vfx4all.jobs import ACTIVE_JOB  # noqa: E402
 from vfx4all.pipeline import flf_size, keyframes  # noqa: E402
 from vfx4all.presets import get_preset, load_presets, render, wardrobe_for  # noqa: E402
 
@@ -53,6 +56,30 @@ def retry_io(fn, tries: int = 3):
             time.sleep(5 * (attempt + 1))
 
 
+class ComfyJobs:
+    """Stands in for an app job so the engine reports every Comfy Cloud job it submits."""
+    cancel_requested = False
+
+    def __init__(self) -> None:
+        self.handles = []
+
+    def attach(self, handle) -> None:
+        self.handles.append(handle)
+
+    def report(self) -> list[dict]:
+        rows = []
+        for handle in self.handles:
+            try:
+                handle.refresh()
+                model = handle._model
+                started, done = getattr(model, "started_at", None), getattr(model, "completed_at", None)
+                seconds = round((done - started).total_seconds(), 1) if started and done else None
+            except Exception:  # the log row matters more than its timing
+                seconds = None
+            rows.append({"job": str(handle.id), "status": handle.status, "exec_s": seconds})
+        return rows
+
+
 def thumb_and_preview(video: Path, pid: str, at: float) -> None:
     ff = media.FFMPEG
     thumbs, previews = WEB_DIR / "thumbs", WEB_DIR / "previews"
@@ -67,6 +94,19 @@ def thumb_and_preview(video: Path, pid: str, at: float) -> None:
 
 def run_one(engine: Engine, preset: dict, cast: dict, out: Path, tag: str, seed: int, quality: str,
             reuse_scene: bool) -> dict:
+    comfy = ComfyJobs()
+    token = ACTIVE_JOB.set(comfy)
+    try:
+        record = _run_one(engine, preset, cast, out, tag, seed, quality, reuse_scene)
+    finally:
+        ACTIVE_JOB.reset(token)
+    record["comfy"] = comfy.report()
+    record["exec_s"] = round(sum(r["exec_s"] or 0 for r in record["comfy"]), 1)
+    return record
+
+
+def _run_one(engine: Engine, preset: dict, cast: dict, out: Path, tag: str, seed: int, quality: str,
+             reuse_scene: bool) -> dict:
     pid = preset["id"]
     subject = cast["preset_subject"].get(pid) or cast["default_subject"]
     actor = cast["actors"][subject]
@@ -144,6 +184,8 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("presets", nargs="*")
     parser.add_argument("--experimental", action="store_true", help="every preset marked experimental")
+    parser.add_argument("--all", action="store_true", help="every preset in presets/")
+    parser.add_argument("--skip", nargs="*", default=[], help="preset ids to leave out")
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--tag", default="v05")
     parser.add_argument("--cast-file", type=Path, required=True)
@@ -155,8 +197,12 @@ def main() -> None:
 
     load_dotenv()
     cast = json.loads(args.cast_file.read_text(encoding="utf-8"))
-    presets = [p for p in load_presets() if p.get("experimental")] if args.experimental else []
-    presets += [get_preset(pid) for pid in args.presets]
+    if args.all:
+        presets = load_presets()
+    else:
+        presets = [p for p in load_presets() if p.get("experimental")] if args.experimental else []
+        presets += [get_preset(pid) for pid in args.presets]
+    presets = [p for p in presets if p["id"] not in args.skip]
     engine = Engine()
     log(f"{len(presets)} presets, {args.workers} workers")
     logfile = args.out / f"renders_{args.tag}" / "log.jsonl"
