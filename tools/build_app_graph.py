@@ -1,4 +1,5 @@
-"""Build one Comfy Cloud App Mode graph per preset: photo -> film scene (Qwen) -> effect (LTX-2.5 DFR).
+"""Build one Comfy Cloud App Mode graph per preset: photo -> film scene (Qwen Image Edit 2511) -> effect
+(LTX-2.5 DFR).
 
 App Mode runs a single graph with no code around it, so the preset text is baked in with the
 neutral subject ("person") and the scene image feeds LTX directly. Visitors open the app with
@@ -19,6 +20,8 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from vfx4all.config import ASPECTS, QUALITY_MEGAPIXELS, WORKFLOWS_DIR  # noqa: E402
+from vfx4all.engine import (SCENE_REF_1, SCENE_SAMPLER, SCENE_SAVE, SCENE_TEXT,  # noqa: E402
+                            scene_graph)
 from vfx4all.presets import get_preset, load_presets, render, wardrobe_for  # noqa: E402
 
 OUT_DIR = WORKFLOWS_DIR / "apps"
@@ -27,7 +30,7 @@ ASPECT = "16:9"
 
 # Node ids in the merged graph. Plain integers, because the API to save format conversion
 # on Comfy Cloud emits a flat graph and does not rebuild subgraph ids like "459:451".
-PHOTO, SCENE_SAVE, SCENE_PROMPT, SCENE_SAMPLER, RGB = 1, 2, 3, 4, 5
+PHOTO, SCENE_SAVE_ID, SCENE_PROMPT, SCENE_SAMPLER_ID, RGB = 1, 2, 3, 4, 5
 EFFECT_PROMPT, EFFECT_SEED, EFFECT_SAVE = 101, 102, 103
 # LTX-2.5 DFR graph: one noise node per stage. App Mode exposes one seed that feeds all three.
 DFR_SEEDS = ("5953:5808", "5953:5843", "5953:5878")
@@ -69,22 +72,22 @@ def build(preset: dict) -> dict:
         raise ValueError(f"{preset['id']} cannot be a single App Mode graph yet")
     fmt = ASPECTS[ASPECT]
 
-    scene, _ = _remap(_load("scene_qwen_image_2_1_edit.json"),
-                      {"470": PHOTO, "461": SCENE_SAVE, "459:474": SCENE_PROMPT, "459:458": SCENE_SAMPLER}, 10)
-    # One photo in App Mode: drop the second reference slot.
-    scene = {k: v for k, v in scene.items() if not (v["class_type"] == "LoadImage" and int(k) != PHOTO)}
-    enc = scene[str(SCENE_PROMPT)]["inputs"]
-    enc.pop("images.image_2", None)
-    enc["prompt"] = render(preset["scene_prompt"], subject=SUBJECT, aspect_words=fmt["words"],
-                           wardrobe=wardrobe_for(preset, SUBJECT))
-    latent = next(v for v in scene.values() if v["class_type"] == "EmptyLatentImage")
+    # One photo in App Mode, so the scene graph without the second reference slot.
+    scene, _ = _remap(scene_graph(two_refs=False),
+                      {SCENE_REF_1: PHOTO, SCENE_SAVE: SCENE_SAVE_ID, SCENE_TEXT: SCENE_PROMPT,
+                       SCENE_SAMPLER: SCENE_SAMPLER_ID}, 10)
+    scene[str(SCENE_PROMPT)]["inputs"]["prompt"] = render(preset["scene_prompt"], subject=SUBJECT,
+                                                          aspect_words=fmt["words"],
+                                                          wardrobe=wardrobe_for(preset, SUBJECT))
+    latent = next(v for v in scene.values() if v["class_type"] == "EmptySD3LatentImage")
     latent["inputs"]["width"], latent["inputs"]["height"] = fmt["scene"]
-    scene[str(SCENE_SAVE)]["inputs"]["filename_prefix"] = f"vfx4all/{preset['id']}_scene"
+    scene[str(SCENE_SAVE_ID)]["inputs"]["filename_prefix"] = f"vfx4all/{preset['id']}_scene"
     scene[str(PHOTO)]["inputs"]["image"] = "example.png"
     scene[str(PHOTO)]["_meta"] = {"title": "Your photo (front view)"}
     decode = next(k for k, v in scene.items() if v["class_type"] == "VAEDecode")
-    # The Qwen 2.1 VAE decodes to RGBA and LTXVPreprocess only takes RGB. The two step app never
-    # hits this because the scene goes through a PNG and LoadImage on the way.
+    # LTXVPreprocess only takes RGB. The Qwen Image VAE already decodes to RGB, but an RGBA image
+    # breaks the whole app, so the split stays as a guard (it passes RGB through untouched). The two
+    # step app never needs it: the scene goes through a PNG and LoadImage on the way.
     scene[str(RGB)] = {"class_type": "SplitImageWithAlpha", "inputs": {"image": [decode, 0]},
                        "_meta": {"title": "Scene to RGB"}}
 

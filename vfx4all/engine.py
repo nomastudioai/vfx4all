@@ -1,37 +1,60 @@
-"""The two Comfy Cloud calls VFX 4 All makes, through the official Comfy SDK.
+"""The Comfy Cloud calls VFX 4 All makes, through the official Comfy SDK.
 
-1. scene(): Qwen Image 2.1 Edit builds a cinematic first frame with the face of
+1. scene(): Qwen Image Edit 2511 builds a cinematic first frame with the face of
    the person in the reference photos.
 2. effect(): LTX-2.5 image to video animates that frame into the VFX shot, with
    native audio. By default through the DFR graph (detailing keyframes and a
    spatial x2 pass with the Refine-Details IC-LoRA); the classic two pass graph
    stays as a fallback.
+3. edit_frame() and effect_flf(): the last frame of first-and-last-frame presets
+   and the shot animated between the two.
 
-Both workflows are API-format graphs in workflows/. Only open-weights models run
+Every workflow is an API-format graph in workflows/. Only open-weights models run
 in them, so no partner API credits are spent: Comfy Cloud bills GPU time only.
 """
 
 from __future__ import annotations
 
 import json
+import time
 from pathlib import Path
-from typing import Callable
+from typing import Callable, TypeVar
 
+import httpx
 from comfy_sdk import Comfy, Progress, StatusChange
 
 from .config import (DFR_WORKFLOW, EDIT_WORKFLOW, EFFECT_WORKFLOW, FLF_WORKFLOW, SCENE_WORKFLOW, SIZE_MULTIPLE,
                      api_key, effect_pipeline)
+from .jobs import ACTIVE_JOB, Cancelled
 
 ProgressFn = Callable[[float | None, str], None]
+T = TypeVar("T")
 
 # Node ids inside the graphs. See workflows/README.md.
-SCENE_REF_1, SCENE_REF_2 = "470", "475"
-SCENE_TEXT, SCENE_LATENT, SCENE_SAMPLER, SCENE_SAVE = "459:474", "459:456", "459:458", "461"
+SCENE_REF_1, SCENE_REF_2 = "1", "16"
+SCENE_TEXT, SCENE_NEGATIVE, SCENE_LATENT, SCENE_SAMPLER, SCENE_SAVE = "8", "9", "12", "13", "15"
 EFFECT_IMAGE, EFFECT_PROMPT, EFFECT_SIZE = "395", "398:376", "403"
 EFFECT_DURATION, EFFECT_SEED, EFFECT_SAVE = "398:362", "398:339", "75"
 DFR_IMAGE, DFR_PROMPT, DFR_SIZE, DFR_DURATION, DFR_SAVE = "2004", "5953:5508", "5954", "5953:5918", "4852"
 DFR_SEEDS = ("5953:5808", "5953:5843", "5953:5878")  # one noise per stage, same seed
 DFR_TRANSFORMER, CLASSIC_TRANSFORMER, FLF_TRANSFORMER, STYLE_LORA = "5953:5742", "398:384", "251:230", "9001"
+
+# Comfy Cloud asset uploads and downloads time out now and then under load (round 5). Those calls
+# are safe to repeat; submitting a job is not after an ambiguous failure, because the job may
+# already be queued and billed, so submit() is only repeated when the connection never opened.
+IO_TRIES = 3
+RETRYABLE = (httpx.TimeoutException, httpx.NetworkError, httpx.RemoteProtocolError)
+
+
+def retry_io(fn: Callable[[], T], tries: int = IO_TRIES, retry_on: tuple = RETRYABLE) -> T:
+    for attempt in range(tries):
+        try:
+            return fn()
+        except retry_on:
+            if attempt == tries - 1:
+                raise
+            time.sleep(5 * (attempt + 1))
+    raise AssertionError("unreachable")
 
 
 def with_style_lora(graph: dict, lora: dict | None, transformer: str = DFR_TRANSFORMER) -> dict:
@@ -54,6 +77,17 @@ class MissingApiKey(RuntimeError):
 
 def _graph(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def scene_graph(two_refs: bool = True) -> dict:
+    """Qwen Image Edit 2511 scene graph; with one photo the second reference slot is removed."""
+    graph = _graph(SCENE_WORKFLOW)
+    if not two_refs:
+        for node in (SCENE_TEXT, SCENE_NEGATIVE):
+            graph[node]["inputs"].pop("image2", None)
+        graph.pop(SCENE_REF_2)
+        graph.pop("17")
+    return graph
 
 
 def edit_graph(with_face: bool = False) -> dict:
@@ -110,13 +144,20 @@ class Engine:
             self._client = Comfy(api_key=key)
         return self._client
 
+    def close(self) -> None:
+        if self._client is not None:
+            self._client.close()
+            self._client = None
+
+    def _asset(self, path: Path):
+        return retry_io(lambda: self.client.assets.from_file(path))
+
     def scene(self, refs: list[Path], prompt: str, size: tuple[int, int], seed: int,
               dest: Path, progress: ProgressFn) -> Path:
-        wf = self.client.workflows.from_json(_graph(SCENE_WORKFLOW))
-        first = self.client.assets.from_file(refs[0])
-        second = self.client.assets.from_file(refs[1]) if len(refs) > 1 else first
-        wf.set_input(SCENE_REF_1, "image", first)
-        wf.set_input(SCENE_REF_2, "image", second)
+        wf = self.client.workflows.from_json(scene_graph(len(refs) > 1))
+        wf.set_input(SCENE_REF_1, "image", self._asset(refs[0]))
+        if len(refs) > 1:
+            wf.set_input(SCENE_REF_2, "image", self._asset(refs[1]))
         wf.set_input(SCENE_TEXT, "prompt", prompt)
         wf.set_input(SCENE_LATENT, "width", size[0])
         wf.set_input(SCENE_LATENT, "height", size[1])
@@ -127,9 +168,9 @@ class Engine:
                    face: Path | None = None) -> Path:
         """Qwen Image Edit 2511 over one frame; `face` is an optional second image for identity."""
         wf = self.client.workflows.from_json(edit_graph(face is not None))
-        wf.set_input("1", "image", self.client.assets.from_file(image))
+        wf.set_input("1", "image", self._asset(image))
         if face is not None:
-            wf.set_input("16", "image", self.client.assets.from_file(face))
+            wf.set_input("16", "image", self._asset(face))
         wf.set_input("8", "prompt", prompt)
         wf.set_input("13", "seed", seed)
         return self._run(wf, "15", dest, progress)
@@ -141,10 +182,10 @@ class Engine:
         in between, as (image, frame index), for effects LTX would otherwise wander off in."""
         graph = flf_graph([frame_idx for _, frame_idx in mids or []], lora)
         wf = self.client.workflows.from_json(graph)
-        wf.set_input("31", "image", self.client.assets.from_file(first))
-        wf.set_input("39", "image", self.client.assets.from_file(last))
+        wf.set_input("31", "image", self._asset(first))
+        wf.set_input("39", "image", self._asset(last))
         for i, (image, _) in enumerate(mids or []):
-            wf.set_input(mid_node(i), "image", self.client.assets.from_file(image))
+            wf.set_input(mid_node(i), "image", self._asset(image))
         wf.set_input("251:252", "value", prompt)
         wf.set_input("251:215", "value", int(size[0]))
         wf.set_input("251:216", "value", int(size[1]))
@@ -159,7 +200,7 @@ class Engine:
                pipeline: str | None = None) -> Path:
         if (pipeline or effect_pipeline()) == "dfr":
             wf = self.client.workflows.from_json(with_style_lora(_graph(DFR_WORKFLOW), lora))
-            wf.set_input(DFR_IMAGE, "image", self.client.assets.from_file(image))
+            wf.set_input(DFR_IMAGE, "image", self._asset(image))
             wf.set_input(DFR_PROMPT, "value", prompt)
             wf.set_input(DFR_SIZE, "aspect_ratio", selector)
             wf.set_input(DFR_SIZE, "megapixels", megapixels)
@@ -168,7 +209,7 @@ class Engine:
                 wf.set_input(node, "noise_seed", seed)
             return self._run(wf, DFR_SAVE, dest, progress)
         wf = self.client.workflows.from_json(with_style_lora(_graph(EFFECT_WORKFLOW), lora, CLASSIC_TRANSFORMER))
-        wf.set_input(EFFECT_IMAGE, "image", self.client.assets.from_file(image))
+        wf.set_input(EFFECT_IMAGE, "image", self._asset(image))
         wf.set_input(EFFECT_PROMPT, "value", prompt)
         wf.set_input(EFFECT_SIZE, "aspect_ratio", selector)
         wf.set_input(EFFECT_SIZE, "megapixels", megapixels)
@@ -178,8 +219,14 @@ class Engine:
         return self._run(wf, EFFECT_SAVE, dest, progress)
 
     def _run(self, wf, output_node: str, dest: Path, progress: ProgressFn) -> Path:
+        # The VFX 4 All job this call runs for, when there is one (tools call the engine directly).
+        owner = ACTIVE_JOB.get()
+        if owner is not None and owner.cancel_requested:
+            raise Cancelled()
         progress(0.02, "Uploading inputs and queueing on Comfy Cloud")
-        job = self.client.submit(wf)
+        job = retry_io(lambda: self.client.submit(wf), retry_on=(httpx.ConnectError, httpx.ConnectTimeout))
+        if owner is not None:
+            owner.attach(job)
         progress(0.05, "Queued on Comfy Cloud")
         try:
             for event in job.events():
@@ -189,13 +236,20 @@ class Engine:
                     progress(None, f"Comfy Cloud: {event.status}")
         except Exception:  # the live stream is best effort; polling below is authoritative
             pass
-        job.result()
-        outputs = job.get_outputs(output_node)
+        try:
+            retry_io(job.result)
+        except Exception:
+            if owner is not None and owner.cancel_requested:
+                raise Cancelled() from None
+            raise
+        if owner is not None and owner.cancel_requested:
+            raise Cancelled()
+        outputs = retry_io(lambda: job.get_outputs(output_node))
         if not outputs:
             raise RuntimeError(f"Job {job.id} finished without an output on node {output_node}")
         output = outputs[0]
         suffix = Path(output.name).suffix or ".bin"
         path = dest.with_suffix(suffix)
-        output.to_file(path)
+        retry_io(lambda: output.to_file(path))
         progress(1.0, "Downloaded")
         return path

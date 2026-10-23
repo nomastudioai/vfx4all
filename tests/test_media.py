@@ -7,7 +7,7 @@ from pathlib import Path
 from vfx4all import media
 from vfx4all.config import BLACK_LUMA_THRESHOLD
 
-from .helpers import make_clip
+from .helpers import make_clip, make_rotated
 
 
 class MediaTests(unittest.TestCase):
@@ -43,6 +43,18 @@ class MediaTests(unittest.TestCase):
         info = media.probe(out)
         self.assertAlmostEqual(info["duration"], 2, delta=0.1)
         self.assertTrue(info["has_audio"])
+
+    def test_a_phone_clip_shot_vertical_stays_vertical(self):
+        # Phones store a vertical clip as landscape pixels plus a rotation flag.
+        rotated = make_rotated(self.source, self.dir / "phone.mp4", 90)
+        info = media.probe(rotated)
+        self.assertEqual((info["width"], info["height"], info["rotation"]), (480, 854, 90))
+        frame = media.probe(media.extract_frame(rotated, 1.0, self.dir / "phone_frame.png"))
+        self.assertEqual((frame["width"], frame["height"]), (480, 854))
+        effect = make_clip(self.dir / "effect_v.mp4", 2, size="512x896", fps=24)
+        out = media.probe(media.splice(rotated, effect, 1.0, self.dir / "phone_spliced.mp4"))
+        self.assertEqual((out["width"], out["height"], out["rotation"]), (480, 854, 0))
+        self.assertTrue(out["has_audio"])
 
     def test_black_take_detection(self):
         black = make_clip(self.dir / "black.mp4", 1, source="color=c=black", audio=False)
