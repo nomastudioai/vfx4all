@@ -10,6 +10,10 @@ const CATEGORY_COLOR = {
   Scale: "#73ee1b", Physics: "#8c11e4", Time: "#ffb547", Style: "#dd005d",
 };
 
+// Browser storage keys. Everything here is a per-browser convenience, never required.
+const KEY = "vfx4all.key", ACCESS = "vfx4all.access", RESULTS = "vfx4all.results", ACTIVE = "vfx4all.active", SCENE = "vfx4all.scene";
+const MAX_RESULTS = 12;
+
 const state = {
   tab: "photo",
   presets: [],
@@ -24,28 +28,53 @@ const state = {
   upload: null,
   cut: 0,
   busy: false,
+  job: null,
 };
 
 /* ---------- helpers ---------- */
 
-function userKey() {
-  try { return localStorage.getItem("vfx4all.key") || ""; } catch { return ""; }
+function stored(name) {
+  try { return localStorage.getItem(name) || ""; } catch { return ""; }
 }
+
+function store(name, value) {
+  try {
+    if (value) localStorage.setItem(name, value); else localStorage.removeItem(name);
+    return true;
+  } catch { return false; }
+}
+
+function storedJSON(name, fallback) {
+  try { return JSON.parse(stored(name)) ?? fallback; } catch { return fallback; }
+}
+
+const userKey = () => stored(KEY);
+const accessCode = () => stored(ACCESS);
 
 function headers(json = true) {
   const h = {};
   if (json) h["Content-Type"] = "application/json";
   const key = userKey();
   if (key) h["X-Comfy-Key"] = key;
+  const code = accessCode();
+  if (code) h["X-Access-Code"] = code;
   return h;
 }
+
+class ApiError extends Error {
+  constructor(message, status) { super(message); this.status = status; }
+}
+
+class Cancelled extends Error {}
 
 async function api(path, options = {}) {
   const res = await fetch(path, options);
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const detail = typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail || `HTTP ${res.status}`);
-    throw new Error(detail);
+    const d = data.detail;
+    const message = typeof d === "string" ? d : Array.isArray(d) && d[0]?.msg ? d[0].msg : `HTTP ${res.status}`;
+    if (res.status === 403) openSettings(message);
+    throw new ApiError(message, res.status);
   }
   return data;
 }
@@ -58,6 +87,12 @@ function toast(message, bad = false) {
   el.classList.add("show");
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => el.classList.remove("show"), bad ? 6000 : 2600);
+}
+
+// A 403 already opened Settings with the server's message, so it needs no toast.
+function fail(err) {
+  if (err instanceof Cancelled) return toast("Cancelled. Nothing else runs for this job.");
+  if (err?.status !== 403) toast(err.message, true);
 }
 
 function el(tag, attrs = {}, children = []) {
@@ -84,10 +119,19 @@ function icon(name, cls = "ic") {
   return svg;
 }
 
+function flash(node) {
+  node.classList.add("flash");
+  setTimeout(() => node.classList.remove("flash"), 1600);
+}
+
 function setBusy(busy) {
   state.busy = busy;
-  $$("#makeBtn, #sceneBtn, #animateBtn, #rebuildBtn, #spliceBtn").forEach((b) => (b.disabled = busy));
+  $$("#makeBtn, #sceneBtn, #animateBtn, #rebuildBtn, #spliceBtn, .rerun").forEach((b) => (b.disabled = busy));
 }
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const qualityLabel = (q) => (q === "hq" ? "HQ" : "Draft");
+const presetName = (id = state.preset) => state.presets.find((p) => p.id === id)?.name || id;
 
 /* ---------- hero hex grid (reacts to the cursor, fires random bursts) ---------- */
 
@@ -172,6 +216,21 @@ function presetAllowed(p) {
   return p.modes.includes("scene");
 }
 
+function whyNot(p) {
+  if (state.tab === "video") return `${p.name} only runs from a photo. Pick another effect for video.`;
+  if (state.ownImage) return `${p.name} needs its own scene. Turn off "Animate my image as it is" to use it.`;
+  return `${p.name} does not run from a photo scene.`;
+}
+
+// After a change of mode, drop a selected effect the new mode cannot run.
+function dropDisallowed() {
+  const current = state.presets.find((p) => p.id === state.preset);
+  if (current && !presetAllowed(current)) {
+    toast(whyNot(current));
+    selectPreset(null);
+  }
+}
+
 function allItems() {
   const live = state.presets.map((p) => ({ ...p, live: true }));
   const soon = state.upcoming.map((u, i) => ({ ...u, id: `soon-${i}`, live: false }));
@@ -185,7 +244,7 @@ function renderChips() {
   chips.replaceChildren(...cats.map((cat) => {
     const n = cat === "All" ? items.length : items.filter((i) => i.category === cat).length;
     return el("button", {
-      class: `chip${state.filter === cat ? " on" : ""}`, role: "tab", "aria-selected": String(state.filter === cat),
+      class: `chip${state.filter === cat ? " on" : ""}`, "aria-pressed": String(state.filter === cat),
       style: `--c:${CATEGORY_COLOR[cat] || "#ff00ff"}`,
       onclick: () => { state.filter = cat; renderChips(); renderRail(); $("#rail").scrollTo({ left: 0, behavior: "smooth" }); },
     }, el("span", {}, [document.createTextNode(cat), el("span", { class: "n", text: String(n) })]));
@@ -221,8 +280,8 @@ function card(item) {
         el("div", { class: "card-shade" }),
         el("div", { class: "card-top" }, [el("span", { class: "tag", text: item.category }), el("span", { class: "tag soon" }, [icon("lock", "ic sm"), document.createTextNode("Soon")])]),
         el("div", { class: "card-body" }, [
-          el("h3", { class: "card-name" }, [icon(item.icon || "sparkles"), document.createTextNode(item.name)]),
-          el("p", { class: "card-desc", text: item.description }),
+          el("span", { class: "card-name" }, [icon(item.icon || "sparkles"), document.createTextNode(item.name)]),
+          el("span", { class: "card-desc", text: item.description }),
         ]),
       ]),
     ]);
@@ -236,25 +295,25 @@ function card(item) {
     "data-id": item.id, style: `--c:${color}`,
     onclick: (e) => {
       if (dragMoved) return e.preventDefault();
-      if (!allowed) return toast(`${item.name} needs its own scene, so it only runs from a photo`);
+      if (!allowed) return toast(whyNot(item));
       const again = state.preset === item.id;
       selectPreset(item.id);
       if (again || e.target.closest(".card-use")) $("#studio").scrollIntoView({ behavior: "smooth" });
     },
     onmouseenter: () => { if (!TOUCH) video.play().then(() => node.classList.add("playing")).catch(() => {}); },
     onmouseleave: () => { if (!TOUCH) { video.pause(); node.classList.remove("playing"); } },
-  }, el("div", { class: "card-in" }, [
+  }, el("span", { class: "card-in" }, [
     el("img", { src: item.thumb, alt: "", loading: "lazy" }), video,
-    el("div", { class: "card-shade" }),
-    el("div", { class: "card-top" }, [
+    el("span", { class: "card-shade" }),
+    el("span", { class: "card-top" }, [
       el("span", { class: "tag", text: item.category }),
       el("span", {}, [
         item.experimental ? el("span", { class: "tag beta", text: "Beta" }) : el("span", { class: "tag live" }, [icon("play", "ic sm"), document.createTextNode("Live")]),
       ]),
     ]),
-    el("div", { class: "card-body" }, [
-      el("h3", { class: "card-name" }, [icon(item.icon || "sparkles"), document.createTextNode(item.name)]),
-      el("p", { class: "card-desc", text: item.description }),
+    el("span", { class: "card-body" }, [
+      el("span", { class: "card-name" }, [icon(item.icon || "sparkles"), document.createTextNode(item.name)]),
+      el("span", { class: "card-desc", text: item.description }),
       el("span", { class: "card-use" }, [icon(state.preset === item.id ? "check" : "wand", "ic sm"),
         document.createTextNode(state.preset === item.id ? "Selected, go to studio" : "Use this effect")]),
     ]),
@@ -273,7 +332,8 @@ function selectPreset(id) {
     if (use) use.replaceChildren(icon(on ? "check" : "wand", "ic sm"), document.createTextNode(on ? "Selected, go to studio" : "Use this effect"));
   });
   $("#chosenName").textContent = p ? p.name : "Pick one above";
-  $("#chosenThumb").src = p ? p.thumb : "";
+  const thumb = $("#chosenThumb");
+  if (p) thumb.src = p.thumb; else thumb.removeAttribute("src");
   const link = $("#comfyLink");
   link.classList.toggle("hidden", !p?.comfy_app);
   if (p?.comfy_app) link.href = p.comfy_app;
@@ -319,48 +379,225 @@ function bindRail() {
 
 /* ---------- jobs ---------- */
 
-async function waitJob(job) {
+function clock(seconds) {
+  const s = Math.max(0, Math.floor(seconds));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
+
+function offScreen(node) {
+  const r = node.getBoundingClientRect();
+  return r.top < 70 || r.bottom > innerHeight;
+}
+
+// Follow a job until it ends. `meta` ({title, kind}) is kept in the browser so a reload can pick it up.
+async function waitJob(job, meta = {}) {
   const box = $("#progress");
   box.classList.remove("hidden");
-  for (;;) {
-    const pct = Math.round((job.progress || 0) * 100);
-    $("#progressBar").style.width = `${pct}%`;
-    $("#progressPct").textContent = `${pct}%`;
-    $("#progressText").textContent = job.message || job.status;
-    if (job.status === "succeeded") break;
-    if (job.status === "failed") { box.classList.add("hidden"); throw new Error(job.error || "The job failed"); }
-    await new Promise((r) => setTimeout(r, 1500));
-    job = await api(`/api/jobs/${job.id}`);
+  $("#cancelBtn").disabled = false;
+  state.job = job;
+  store(ACTIVE, JSON.stringify({ id: job.id, title: meta.title || "", kind: meta.kind || job.kind }));
+  if (offScreen(box)) box.scrollIntoView({ behavior: REDUCED ? "auto" : "smooth", block: "center" });
+  const started = job.created ? job.created * 1000 : Date.now();
+  const tick = () => ($("#progressTime").textContent = clock((Date.now() - started) / 1000));
+  tick();
+  const timer = setInterval(tick, 1000);
+  try {
+    for (;;) {
+      const pct = Math.round((job.progress || 0) * 100);
+      $("#progressBar").style.width = `${pct}%`;
+      $("#progressPct").textContent = `${pct}%`;
+      $("#progressText").textContent = job.message || job.status;
+      if (job.status === "succeeded") return job;
+      if (job.status === "failed") throw new Error(job.error || "The job failed");
+      if (job.status === "cancelled") throw new Cancelled();
+      await sleep(1500);
+      job = await api(`/api/jobs/${job.id}`);
+      state.job = job;
+    }
+  } finally {
+    clearInterval(timer);
+    box.classList.add("hidden");
+    state.job = null;
+    store(ACTIVE, "");
   }
-  box.classList.add("hidden");
-  return job;
+}
+
+async function cancelJob() {
+  if (!state.job) return;
+  $("#cancelBtn").disabled = true;
+  $("#progressText").textContent = "Cancelling";
+  try { await api(`/api/jobs/${state.job.id}/cancel`, { method: "POST", headers: headers() }); }
+  catch (err) { $("#cancelBtn").disabled = false; fail(err); }
 }
 
 function startJob(kind, body) {
   return api(`/api/jobs/${kind}`, { method: "POST", headers: headers(), body: JSON.stringify(body) });
 }
 
-function addResult(title, job, extra = []) {
-  $("#emptyState")?.remove();
-  const links = [el("a", { href: job.outputs.video, download: "" }, [icon("download", "ic sm"), document.createTextNode("Download")]), ...extra];
-  const node = el("article", { class: "result" }, [
-    el("video", { src: job.outputs.video, controls: true, playsinline: true, poster: job.outputs.poster || null }),
-    el("div", { class: "meta" }, [el("span", { text: title }), el("span", {}, links)]),
-  ]);
-  $("#results").prepend(node);
-  node.querySelector("video").play().catch(() => {});
-  node.scrollIntoView({ behavior: "smooth", block: "nearest" });
+async function runJob(kind, body, title) {
+  const done = await waitJob(await startJob(kind, body), { title, kind });
+  addResult(title, done);
+  return done;
 }
 
-const presetName = () => state.presets.find((p) => p.id === state.preset)?.name || state.preset;
+function promptBox(text) {
+  return el("details", { class: "prompt" }, [el("summary", { text: "Prompt" }), el("p", { text })]);
+}
+
+// The request fields a result can be run again with, by job kind.
+const RERUN_FIELDS = {
+  effect: ["preset", "scene_job", "image", "subject", "aspect", "quality"],
+  splice: ["preset", "video", "seconds", "subject", "quality", "audio"],
+};
+
+function resultTitle(kind, body) {
+  const where = kind === "splice" ? ` from ${Number(body.seconds || 0).toFixed(2)} s` : "";
+  return `${presetName(body.preset)}${where} | ${qualityLabel(body.quality)}`;
+}
+
+function rerun(job, overrides = {}) {
+  const body = {};
+  for (const k of RERUN_FIELDS[job.kind] || []) {
+    const v = job.params?.[k];
+    if (v !== null && v !== undefined && v !== "") body[k] = v;
+  }
+  Object.assign(body, overrides);
+  return runJob(job.kind, body, resultTitle(job.kind, body));
+}
+
+function addResult(title, job, fresh = true) {
+  $("#emptyState")?.remove();
+  const p = job.params || {};
+  const seed = p.seed_used;
+  const links = [el("a", { href: job.outputs.video, download: "" }, [icon("download", "ic sm"), document.createTextNode("Download")])];
+  if (job.outputs.effect) links.push(el("a", { href: job.outputs.effect, download: "" }, [icon("film", "ic sm"), document.createTextNode("Effect only")]));
+  const video = el("video", { src: job.outputs.video, controls: true, playsinline: true, preload: fresh ? "auto" : "metadata", poster: job.outputs.poster || null });
+  const media = el("div", { class: "result-media" }, video);
+  const actions = [];
+  if (RERUN_FIELDS[job.kind]) {
+    actions.push(el("button", { type: "button", class: "rerun", onclick: () => run(() => rerun(job)) },
+      [icon("sparkles", "ic sm"), document.createTextNode("New take")]));
+    if (p.quality !== "hq" && seed !== null && seed !== undefined) {
+      actions.push(el("button", { type: "button", class: "rerun", onclick: () => run(() => rerun(job, { quality: "hq", seed })) },
+        [icon("gem", "ic sm"), document.createTextNode("HQ of this take")]));
+    }
+  }
+  if (job.kind === "splice" && p.video) {
+    const btn = el("button", { type: "button", "aria-pressed": "false", onclick: () => toggleCompare(node, job, btn) },
+      [icon("compare", "ic sm"), document.createTextNode("Compare")]);
+    actions.push(btn);
+  }
+  if (seed !== null && seed !== undefined) actions.push(el("span", { class: "seed", text: `Seed ${seed}` }));
+  const node = el("article", { class: "result", "data-id": job.id }, [
+    media,
+    el("div", { class: "meta" }, [el("span", { text: title }), el("span", {}, links)]),
+    actions.length ? el("div", { class: "result-actions" }, actions) : null,
+    p.prompt ? promptBox(p.prompt) : null,
+  ]);
+  $("#results").prepend(node);
+  if (state.busy) $$(".rerun", node).forEach((b) => (b.disabled = true));
+  if (fresh) {
+    rememberResult(job.id, title);
+    video.play().catch(() => {});
+    node.scrollIntoView({ behavior: REDUCED ? "auto" : "smooth", block: "nearest" });
+  }
+}
+
+// Before and after for a splice: your clip over the result, wiped with a slider, playing in step.
+function toggleCompare(node, job, btn) {
+  const media = $(".result-media", node);
+  const main = $("video", media);
+  let orig = $(".compare-orig", media);
+  if (!orig) {
+    orig = el("video", { class: "compare-orig", src: `/files/uploads/${job.params.video}`, playsinline: true, preload: "auto" });
+    orig.muted = true;
+    const line = el("span", { class: "compare-line" });
+    const range = el("input", { type: "range", min: "0", max: "100", value: "50", "aria-label": "Wipe between the result and your clip" });
+    const wipe = () => {
+      orig.style.clipPath = `inset(0 0 46px ${range.value}%)`;
+      line.style.left = `${range.value}%`;
+    };
+    const on = () => !orig.classList.contains("hidden");
+    const sync = () => { if (on() && Math.abs(orig.currentTime - main.currentTime) > 0.12) orig.currentTime = main.currentTime; };
+    main.addEventListener("play", () => { if (on()) { sync(); orig.play().catch(() => {}); } });
+    main.addEventListener("pause", () => orig.pause());
+    main.addEventListener("seeked", sync);
+    main.addEventListener("timeupdate", sync);
+    main.addEventListener("ratechange", () => (orig.playbackRate = main.playbackRate));
+    range.addEventListener("input", wipe);
+    media.append(orig, line, el("span", { class: "compare-tag l", text: "Result" }), el("span", { class: "compare-tag r", text: "Your clip" }));
+    media.after(el("label", { class: "compare-row" }, [el("span", { text: "Result" }), range, el("span", { text: "Your clip" })]));
+    wipe();
+  } else {
+    const show = orig.classList.contains("hidden");
+    $$(".compare-orig, .compare-line, .compare-tag", media).forEach((n) => n.classList.toggle("hidden", !show));
+    $(".compare-row", node).classList.toggle("hidden", !show);
+    if (!show) orig.pause();
+  }
+  const shown = !orig.classList.contains("hidden");
+  btn.setAttribute("aria-pressed", String(shown));
+  if (shown) {
+    orig.currentTime = main.currentTime;
+    if (!main.paused) orig.play().catch(() => {});
+  }
+}
+
+function rememberResult(id, title) {
+  const list = storedJSON(RESULTS, []).filter((r) => r.id !== id);
+  list.unshift({ id, title });
+  store(RESULTS, JSON.stringify(list.slice(0, MAX_RESULTS)));
+}
+
+// Bring back what this browser made before a reload: results, the last scene and a job still running.
+async function restore() {
+  const kept = [];
+  for (const r of [...storedJSON(RESULTS, [])].reverse()) {
+    try {
+      const job = await api(`/api/jobs/${r.id}`);
+      if (job.status === "succeeded" && job.outputs?.video) { addResult(r.title, job, false); kept.unshift(r); }
+    } catch { /* gone from the server */ }
+  }
+  store(RESULTS, kept.length ? JSON.stringify(kept) : "");
+
+  const sceneId = stored(SCENE);
+  if (sceneId) {
+    try {
+      const job = await api(`/api/jobs/${sceneId}`);
+      if (job.status === "succeeded" && job.outputs?.scene) showScene(job); else store(SCENE, "");
+    } catch { store(SCENE, ""); }
+  }
+
+  const active = storedJSON(ACTIVE, null);
+  if (!active?.id) return;
+  let job;
+  try { job = await api(`/api/jobs/${active.id}`); } catch { store(ACTIVE, ""); return; }
+  const finish = (done) => {
+    if ((active.kind || done.kind) === "scene") showScene(done);
+    else addResult(active.title || presetName(done.params?.preset), done);
+  };
+  if (job.status === "queued" || job.status === "running") run(async () => finish(await waitJob(job, active)));
+  else {
+    store(ACTIVE, "");
+    if (job.status === "succeeded") finish(job);
+  }
+}
 
 /* ---------- photo mode ---------- */
+
+function needConsent() {
+  if ($("#consent").checked) return true;
+  toast("Confirm first that everyone in it agreed to be used", true);
+  flash($("#consentRow"));
+  $("#consent").focus();
+  return false;
+}
 
 async function uploadFiles(files) {
   const out = [];
   for (const file of files) {
     const form = new FormData();
     form.append("file", file);
+    form.append("consent", "true");
     out.push(await api("/api/upload", { method: "POST", body: form, headers: headers(false) }));
   }
   return out;
@@ -373,10 +610,17 @@ function renderThumbs() {
   ])));
 }
 
+const isHeic = (f) => /\.(heic|heif)$/i.test(f.name) || /image\/hei[cf]/i.test(f.type);
+
 async function addPhotos(fileList) {
-  const files = [...fileList].filter((f) => f.type.startsWith("image/")).slice(0, 2 - state.refs.length);
-  if (!files.length) return toast("Two photos at most, PNG, JPG or WEBP", true);
-  try { state.refs.push(...(await uploadFiles(files))); renderThumbs(); } catch (err) { toast(err.message, true); }
+  const all = [...fileList];
+  if (all.some(isHeic)) return toast("HEIC photos from an iPhone are not supported yet. Export them as JPG first.", true);
+  if (state.refs.length >= 2) return toast("Two photos at most. Remove one first.", true);
+  const images = all.filter((f) => f.type.startsWith("image/"));
+  if (!images.length) return toast("Use PNG, JPG or WEBP photos", true);
+  const big = images.find((f) => f.size > imageLimits.max_mb * 1024 * 1024);
+  if (big) return toast(`${big.name} is over ${imageLimits.max_mb} MB. Use a smaller photo.`, true);
+  try { state.refs.push(...(await uploadFiles(images.slice(0, 2 - state.refs.length)))); renderThumbs(); } catch (err) { fail(err); }
 }
 
 function needPhoto() {
@@ -385,28 +629,35 @@ function needPhoto() {
   return true;
 }
 
+function showScene(job) {
+  state.sceneJob = job.id;
+  store(SCENE, job.id);
+  $("#sceneImg").src = `${job.outputs.scene}?t=${Date.now()}`;
+  const details = $("#scenePrompt");
+  $("p", details).textContent = job.params?.prompt || "";
+  details.classList.toggle("hidden", !job.params?.prompt);
+  $("#sceneCard").classList.toggle("hidden", state.tab !== "photo");
+}
+
 async function buildScene() {
   const done = await waitJob(await startJob("scene", {
     preset: state.preset, refs: state.refs.map((r) => r.id), subject: state.photo.subject,
     notes: $("#notes").value, aspect: state.photo.aspect,
-  }));
-  state.sceneJob = done.id;
-  $("#sceneImg").src = `${done.outputs.scene}?t=${Date.now()}`;
-  $("#sceneCard").classList.remove("hidden");
+  }), { title: presetName(), kind: "scene" });
+  showScene(done);
   return done;
 }
 
-async function animate() {
+function animate() {
   const body = { preset: state.preset, subject: state.photo.subject, aspect: state.photo.aspect, quality: state.photo.quality };
   if (state.ownImage) body.image = state.refs[0].id; else body.scene_job = state.sceneJob;
-  const done = await waitJob(await startJob("effect", body));
-  addResult(`${presetName()} | ${state.photo.quality === "hq" ? "HQ" : "Draft"}`, done);
+  return runJob("effect", body, resultTitle("effect", body));
 }
 
 async function run(task) {
   if (state.busy) return;
   setBusy(true);
-  try { await task(); } catch (err) { toast(err.message, true); } finally { setBusy(false); }
+  try { await task(); } catch (err) { fail(err); } finally { setBusy(false); }
 }
 
 /* ---------- video mode ---------- */
@@ -419,8 +670,19 @@ function drawCut() {
   c.getContext("2d").drawImage(v, 0, 0, c.width, c.height);
 }
 
-// Same numbers as VIDEO_LIMITS on the server, which has the last word; /api/health refreshes them.
+// Same numbers as the server, which has the last word; /api/health refreshes them.
 let videoLimits = { min_seconds: 2, max_seconds: 60, min_short_side: 480, max_long_side: 4096, max_mb: 500 };
+let imageLimits = { max_mb: 20, max_side: 8192 };
+
+const sideLabel = (px) => (px >= 3840 ? "4K" : `${px}p`);
+
+function paintLimits() {
+  const v = videoLimits;
+  $("#limSeconds").textContent = `${v.min_seconds} to ${v.max_seconds} s`;
+  $("#limRes").textContent = `${v.min_short_side}p to ${sideLabel(v.max_long_side)}`;
+  $("#limMb").textContent = `up to ${v.max_mb} MB`;
+  $("#photoLimit").textContent = `PNG, JPG or WEBP, up to ${imageLimits.max_mb} MB each.`;
+}
 
 function localVideoMeta(file) {
   return new Promise((resolve) => {
@@ -440,8 +702,8 @@ function videoProblem(file, meta) {
   if (!meta || !meta.width) return null;
   if (meta.seconds < lim.min_seconds) return `That clip is ${meta.seconds.toFixed(1)} s. Use one of at least ${lim.min_seconds} s.`;
   if (meta.seconds > lim.max_seconds) return `That clip is ${Math.round(meta.seconds)} s. Trim it to ${lim.max_seconds} s or less around the moment you want.`;
-  if (Math.min(meta.width, meta.height) < lim.min_short_side) return `That clip is ${meta.width}x${meta.height}. Use 480p or more.`;
-  if (Math.max(meta.width, meta.height) > lim.max_long_side) return `That clip is ${meta.width}x${meta.height}. Use 4K or less.`;
+  if (Math.min(meta.width, meta.height) < lim.min_short_side) return `That clip is ${meta.width}x${meta.height}. Use ${lim.min_short_side}p or more.`;
+  if (Math.max(meta.width, meta.height) > lim.max_long_side) return `That clip is ${meta.width}x${meta.height}. Use ${sideLabel(lim.max_long_side)} or less.`;
   return null;
 }
 
@@ -450,8 +712,7 @@ async function addVideo(fileList) {
   if (!file) return toast("Drop an MP4, MOV, WEBM or MKV clip", true);
   const problem = videoProblem(file, await localVideoMeta(file));
   if (problem) {
-    $("#videoLimits").classList.add("flash");
-    setTimeout(() => $("#videoLimits").classList.remove("flash"), 1600);
+    flash($("#videoLimits"));
     return toast(problem, true);
   }
   try {
@@ -462,39 +723,62 @@ async function addVideo(fileList) {
     $("#videoBox").classList.remove("hidden");
     $("#cutLabel").textContent = "0.00 s";
     v.addEventListener("loadeddata", drawCut, { once: true });
-  } catch (err) { toast(err.message, true); }
+  } catch (err) { fail(err); }
 }
 
-async function splice() {
+function splice() {
   if (!state.preset) return toast("Pick an effect first", true);
   if (!state.upload) return toast("Add a clip first", true);
-  const done = await waitJob(await startJob("splice", {
+  const body = {
     preset: state.preset, video: state.upload.id, seconds: state.cut,
     subject: state.video.subject, quality: state.video.quality, audio: state.video.audio,
-  }));
-  addResult(`${presetName()} from ${state.cut.toFixed(2)} s`, done, [
-    el("a", { href: done.outputs.effect, download: "" }, [icon("film", "ic sm"), document.createTextNode("Effect only")]),
-  ]);
+  };
+  return runJob("splice", body, resultTitle("splice", body));
+}
+
+/* ---------- settings ---------- */
+
+function openSettings(message = "") {
+  const dialog = $("#settings");
+  $("#keyInput").value = userKey();
+  $("#accessInput").value = accessCode();
+  const msg = $("#settingsMsg");
+  msg.textContent = message;
+  msg.classList.toggle("hidden", !message);
+  if (message) $("#accessField").classList.remove("hidden");
+  dialog.returnValue = "";
+  if (!dialog.open) dialog.showModal();
 }
 
 /* ---------- wiring ---------- */
 
 function bindDrop(zone, input, handler) {
-  zone.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); input.click(); } });
-  input.addEventListener("change", () => { handler(input.files); input.value = ""; });
+  zone.addEventListener("click", (e) => { if (e.target !== input && !needConsent()) e.preventDefault(); });
+  zone.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    e.preventDefault();
+    if (needConsent()) input.click();
+  });
+  input.addEventListener("change", () => { if (needConsent()) handler(input.files); input.value = ""; });
   zone.addEventListener("dragover", (e) => { e.preventDefault(); zone.classList.add("over"); });
   zone.addEventListener("dragleave", () => zone.classList.remove("over"));
-  zone.addEventListener("drop", (e) => { e.preventDefault(); zone.classList.remove("over"); handler(e.dataTransfer.files); });
+  zone.addEventListener("drop", (e) => {
+    e.preventDefault();
+    zone.classList.remove("over");
+    if (needConsent()) handler(e.dataTransfer.files);
+  });
 }
 
 function bindSegments() {
   for (const seg of $$(".seg")) {
     const scope = seg.closest("#videoPanel") ? state.video : state.photo;
+    const buttons = $$("button", seg);
+    buttons.forEach((b) => b.setAttribute("aria-pressed", String(b.classList.contains("on"))));
     seg.addEventListener("click", (e) => {
       const btn = e.target.closest("button");
       if (!btn) return;
       e.preventDefault();
-      seg.querySelectorAll("button").forEach((b) => b.classList.toggle("on", b === btn));
+      buttons.forEach((b) => { const on = b === btn; b.classList.toggle("on", on); b.setAttribute("aria-pressed", String(on)); });
       scope[seg.dataset.name] = btn.dataset.value;
     });
   }
@@ -506,26 +790,30 @@ function switchTab(tab) {
   $("#photoPanel").classList.toggle("hidden", tab !== "photo");
   $("#videoPanel").classList.toggle("hidden", tab !== "video");
   $("#sceneCard").classList.toggle("hidden", tab !== "photo" || !state.sceneJob);
-  const current = state.presets.find((p) => p.id === state.preset);
-  if (current && !presetAllowed(current)) {
-    toast(`${current.name} only runs from a photo. Pick another effect for video.`);
-    selectPreset(null);
-  }
+  dropDisallowed();
   renderRail();
 }
 
 async function refreshKeyStatus() {
   const pill = $("#keyStatus");
+  let text;
   try {
     const health = await api("/api/health");
     if (health.video_limits) videoLimits = health.video_limits;
+    if (health.image_limits) imageLimits = health.image_limits;
+    paintLimits();
+    $("#accessField").classList.toggle("hidden", !health.access_required && !accessCode());
     const own = Boolean(userKey());
-    pill.className = `status ${own || health.has_key ? "ok" : "warn"}`;
-    $(".txt", pill).textContent = own ? "Your Comfy key" : health.has_key ? "Comfy Cloud ready" : "No Comfy key";
+    const needsCode = health.access_required && !accessCode();
+    pill.className = `status ${!needsCode && (own || health.has_key) ? "ok" : "warn"}`;
+    text = needsCode ? "Access code needed" : own ? "Your Comfy key" : health.has_key ? "Comfy Cloud ready" : "No Comfy key";
   } catch {
     pill.className = "status warn";
-    $(".txt", pill).textContent = "Server offline";
+    text = "Server offline";
   }
+  $(".txt", pill).textContent = text;
+  pill.setAttribute("aria-label", text);
+  pill.title = text;
 }
 
 function bindReveal() {
@@ -548,42 +836,51 @@ async function init() {
     state.ownImage = e.target.checked;
     $("#notesField").classList.toggle("hidden", state.ownImage);
     $("#sceneBtn").classList.toggle("hidden", state.ownImage);
+    dropDisallowed();
     renderRail();
   });
   $("#makeBtn").addEventListener("click", () => run(async () => { if (!needPhoto()) return; if (!state.ownImage) await buildScene(); await animate(); }));
   $("#sceneBtn").addEventListener("click", () => run(async () => { if (needPhoto()) await buildScene(); }));
   $("#rebuildBtn").addEventListener("click", () => run(async () => { if (needPhoto()) await buildScene(); }));
-  $("#animateBtn").addEventListener("click", () => run(async () => { if (!state.sceneJob) return toast("Build a scene first", true); await animate(); }));
+  $("#animateBtn").addEventListener("click", () => run(async () => {
+    if (!state.preset) return toast("Pick an effect first", true);
+    if (!state.sceneJob) return toast("Build a scene first", true);
+    await animate();
+  }));
   $("#setCutBtn").addEventListener("click", () => {
     state.cut = $("#srcVideo").currentTime || 0;
     $("#cutLabel").textContent = `${state.cut.toFixed(2)} s`;
     drawCut();
   });
   $("#spliceBtn").addEventListener("click", () => run(splice));
+  $("#cancelBtn").addEventListener("click", cancelJob);
 
   const dialog = $("#settings");
-  $("#settingsBtn").addEventListener("click", () => { $("#keyInput").value = userKey(); dialog.showModal(); });
+  $("#settingsBtn").addEventListener("click", () => openSettings());
   dialog.addEventListener("close", () => {
-    try {
-      if (dialog.returnValue === "save") localStorage.setItem("vfx4all.key", $("#keyInput").value.trim());
-      if (dialog.returnValue === "clear") localStorage.removeItem("vfx4all.key");
-    } catch { toast("This browser blocks local storage, so the key cannot be saved", true); }
+    let ok = true;
+    if (dialog.returnValue === "save") ok = store(KEY, $("#keyInput").value.trim()) && store(ACCESS, $("#accessInput").value.trim());
+    if (dialog.returnValue === "clear") ok = store(KEY, "") && store(ACCESS, "");
+    if (!ok) toast("This browser blocks local storage, so the key and the code cannot be saved", true);
     refreshKeyStatus();
   });
 
+  paintLimits();
   try {
     const [presets, upcoming] = await Promise.all([api("/api/presets"), fetch("/static/upcoming.json").then((r) => r.json()).catch(() => [])]);
     state.presets = presets;
     state.upcoming = upcoming;
     const total = presets.length + upcoming.length;
-    const beta = presets.filter((x) => x.experimental).length;
-    $("#liveCount").textContent = beta ? `${total} effects / ${beta} in beta` : `${presets.length} live / ${total}`;
+    $("#liveCount").textContent = upcoming.length ? `${presets.length} effects, ${upcoming.length} coming` : `${presets.length} effects`;
     $("#heroCount").textContent = `Browse ${total} effects`;
+    $("#effectsSub").textContent = `Swipe through the catalog. ${TOUCH ? "Each card plays as it comes into view." : "Hover a card to see it move."}${upcoming.length ? " Locked cards are on their way." : ""}`;
+    $("#comfyHint").classList.toggle("hidden", !presets.some((p) => p.comfy_app));
     renderChips();
     renderRail();
     if (presets[0]) selectPreset(presets[0].id);
   } catch (err) { toast(`Could not load effects: ${err.message}`, true); }
-  refreshKeyStatus();
+  await refreshKeyStatus();
+  restore();
 }
 
 init();
