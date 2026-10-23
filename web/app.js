@@ -4,6 +4,8 @@ const $ = (sel, el = document) => el.querySelector(sel);
 const $$ = (sel, el = document) => [...el.querySelectorAll(sel)];
 const TOUCH = matchMedia("(hover: none)").matches;
 const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
+// "static" on the catalog site built by tools/build_site.py: no server behind it, effects run as Comfy Cloud apps.
+const STATIC = document.querySelector('meta[name="vfx4all-mode"]')?.content === "static";
 
 const CATEGORY_COLOR = {
   Elements: "#ff00ff", Transformations: "#33f5ff", Clones: "#cc66ff", Worlds: "#38b6ff",
@@ -211,6 +213,7 @@ function hexGrid(canvas) {
 /* ---------- effects rail ---------- */
 
 function presetAllowed(p) {
+  if (STATIC) return true;
   if (state.tab === "video") return p.modes.includes("video");
   if (state.ownImage) return p.modes.includes("own_image");
   return p.modes.includes("scene");
@@ -298,7 +301,7 @@ function card(item) {
       if (!allowed) return toast(whyNot(item));
       const again = state.preset === item.id;
       selectPreset(item.id);
-      if (again || e.target.closest(".card-use")) $("#studio").scrollIntoView({ behavior: "smooth" });
+      if (again || e.target.closest(".card-use")) $(STATIC ? "#try" : "#studio").scrollIntoView({ behavior: "smooth" });
     },
     onmouseenter: () => { if (!TOUCH) video.play().then(() => node.classList.add("playing")).catch(() => {}); },
     onmouseleave: () => { if (!TOUCH) { video.pause(); node.classList.remove("playing"); } },
@@ -315,10 +318,15 @@ function card(item) {
       el("span", { class: "card-name" }, [icon(item.icon || "sparkles"), document.createTextNode(item.name)]),
       el("span", { class: "card-desc", text: item.description }),
       el("span", { class: "card-use" }, [icon(state.preset === item.id ? "check" : "wand", "ic sm"),
-        document.createTextNode(state.preset === item.id ? "Selected, go to studio" : "Use this effect")]),
+        document.createTextNode(useLabel(state.preset === item.id))]),
     ]),
   ]));
   return node;
+}
+
+function useLabel(on) {
+  if (STATIC) return on ? "Selected, see how to run it" : "Try this effect";
+  return on ? "Selected, go to studio" : "Use this effect";
 }
 
 function selectPreset(id) {
@@ -329,14 +337,35 @@ function selectPreset(id) {
     c.classList.toggle("selected", on);
     c.setAttribute("aria-selected", String(on));
     const use = c.querySelector(".card-use");
-    if (use) use.replaceChildren(icon(on ? "check" : "wand", "ic sm"), document.createTextNode(on ? "Selected, go to studio" : "Use this effect"));
+    if (use) use.replaceChildren(icon(on ? "check" : "wand", "ic sm"), document.createTextNode(useLabel(on)));
   });
+  if (STATIC) paintTry(p);
   $("#chosenName").textContent = p ? p.name : "Pick one above";
   const thumb = $("#chosenThumb");
   if (p) thumb.src = p.thumb; else thumb.removeAttribute("src");
   const link = $("#comfyLink");
   link.classList.toggle("hidden", !p?.comfy_app);
   if (p?.comfy_app) link.href = p.comfy_app;
+}
+
+// Static site: the chosen effect, its preview, and its Comfy Cloud app when it has one.
+function paintTry(p) {
+  $("#tryName").textContent = p ? p.name : "Pick one above";
+  const thumb = $("#tryThumb");
+  if (p) thumb.src = p.thumb; else thumb.removeAttribute("src");
+  const preview = $("#tryPreview");
+  if (p && preview.getAttribute("src") !== p.preview) {
+    preview.src = p.preview;
+    if (!REDUCED) preview.play().catch(() => {});
+  }
+  const run = $("#tryRun"), note = $("#tryNote");
+  run.classList.toggle("hidden", !p?.comfy_app);
+  if (p?.comfy_app) run.href = p.comfy_app;
+  const why = !p || p.comfy_app ? "" : p.app_mode
+    ? "Its Comfy Cloud app is on its way."
+    : `${p.name} needs more than one graph, so it runs only in the full app.`;
+  note.textContent = why;
+  note.classList.toggle("hidden", !why);
 }
 
 function updateRailBar() {
@@ -866,8 +895,14 @@ async function init() {
   });
 
   paintLimits();
+  if (STATIC) {
+    // the demo section only shows when the site was built with a demo video in it
+    $$(".static-only").forEach((n) => { if (n.id !== "demo" || $("video", n)) n.hidden = false; });
+    $("#heroCta").href = "#try";
+  }
   try {
-    const [presets, upcoming] = await Promise.all([api("/api/presets"), fetch("/static/upcoming.json").then((r) => r.json()).catch(() => [])]);
+    const presetList = STATIC ? fetch("/static/presets.json").then((r) => r.json()) : api("/api/presets");
+    const [presets, upcoming] = await Promise.all([presetList, fetch("/static/upcoming.json").then((r) => r.json()).catch(() => [])]);
     state.presets = presets;
     state.upcoming = upcoming;
     const total = presets.length + upcoming.length;
@@ -879,6 +914,7 @@ async function init() {
     renderRail();
     if (presets[0]) selectPreset(presets[0].id);
   } catch (err) { toast(`Could not load effects: ${err.message}`, true); }
+  if (STATIC) return;
   await refreshKeyStatus();
   restore();
 }

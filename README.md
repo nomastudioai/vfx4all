@@ -14,6 +14,14 @@ your own ComfyUI.
 | **Disintegrate** | **Colossus** | **Zero Gravity** | **Frozen Rain** (beta) |
 | ![](web/thumbs/disintegrate.jpg) | ![](web/thumbs/colossus.jpg) | ![](web/thumbs/zero-gravity.jpg) | ![](web/thumbs/frozen-rain.jpg) |
 
+## Try it
+
+* **In your browser, no key:** [vfx.nomastudio.ai](https://vfx.nomastudio.ai) plays every effect.
+  Pick one and open it as a Comfy Cloud app: sign in with your Comfy account, add a photo and run
+  it. The run bills your own Comfy account.
+* **On your machine, everything:** the full app adds video mode, a second photo for the likeness, 9:16
+  and HQ. It runs with your own Comfy API key, see [Run it](#run-it).
+
 ## Two ways in
 
 **From a photo.** Upload one or two photos of a person. Each preset builds its own film scene
@@ -29,7 +37,8 @@ cut, then the effect, joined on the same frame so the cut is invisible. Clips fr
 can also run as a Comfy Cloud App Mode app: one graph that takes your photo, builds the scene and
 renders the effect. You open it with your own
 Comfy account and run it with your own credits; nobody hands an API key to anyone.
-`tools/build_app_graph.py` builds those graphs from the presets.
+`tools/build_app_graph.py` builds those graphs from the presets, and each preset keeps the share link
+of its app in `comfy_app`.
 
 ## How it works
 
@@ -56,8 +65,8 @@ first frame --> Qwen Image Edit 2511 (or a mirror) --> last frame --> LTX-2.5 fi
   repeats the uploads and downloads that time out, and splices videos with ffmpeg.
 * `web/` is the interface: plain HTML, CSS and JavaScript, no build step. It shows the prompt that
   was sent, keeps your results across reloads and compares a spliced clip with your original.
-* `tools/build_app_graph.py` builds the App Mode graphs and `tools/batch_presets.py` renders test
-  versions of the presets; `tools/dev/` keeps the A/B scripts behind the choices in
+* `tools/build_app_graph.py` builds the App Mode graphs, `tools/build_site.py` builds the static
+  catalog site and `tools/batch_presets.py` renders test versions of the presets; `tools/dev/` keeps the A/B scripts behind the choices in
   [workflows/README.md](workflows/README.md).
 
 ## Run it
@@ -83,7 +92,7 @@ ffmpeg ships inside the `imageio-ffmpeg` wheel, so there is nothing else to inst
 ```
 
 The tests run offline in a few seconds. They check every preset and graph, the App Mode builder,
-the upload limits, the ffmpeg steps (phone clips shot vertical included), the HTTP API with its
+the static site build, the upload limits, the ffmpeg steps (phone clips shot vertical included), the HTTP API with its
 hosted mode, access code and daily cap, the job queue, and that every model the graphs load is
 listed in `THIRD_PARTY_NOTICES.md`. They never reach Comfy Cloud (the test package blanks
 `COMFY_API_KEY` before the app loads), so they cost nothing. GitHub Actions runs them on Linux and
@@ -234,6 +243,22 @@ behind a reverse proxy with HTTPS and set `FORWARDED_ALLOW_IPS` to the proxy's a
 sends a strict Content Security Policy and serves the fonts itself, so the page loads nothing from
 other sites. If you host it for others, the LTX license asks you to put its Section 4 and the
 Acceptable Use Policy into your own terms (see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)).
+
+### The catalog site
+
+A public page that spends nothing does not need the server at all. `tools/build_site.py` writes
+`site/`: the same interface in static mode, where every card plays its preview and opens the
+preset's Comfy Cloud app (`comfy_app`), so each visitor runs it with their own Comfy account. The
+studio and the key settings are left out, `presets.json` replaces the API, and `vercel.json` sends
+the same security headers as the server.
+
+```bash
+.venv/Scripts/python tools/build_site.py --demo path/to/demo.mp4   # --demo is optional
+cd site && vercel deploy                                           # or any static host
+```
+
+On Vercel, the first deployment of a project goes to production and takes the project's domains,
+even without `--prod`.
 
 ## Consent
 
