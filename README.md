@@ -215,8 +215,8 @@ By default VFX 4 All is a local app: it listens on 127.0.0.1, has no login and k
 * Jobs, uploads and results belong to the browser session that made them; nobody else can list or
   open them, and `job.json` and error logs are never served.
 * Clips are capped at 30 s and 100 MB, a session runs two jobs at a time
-  (`VFX4ALL_SESSION_JOBS`), and runs and uploads older than 48 hours are deleted
-  (`VFX4ALL_RETENTION_HOURS`).
+  (`VFX4ALL_SESSION_JOBS`) and one network six (`VFX4ALL_IP_JOBS`), and runs and uploads older
+  than 48 hours are deleted (`VFX4ALL_RETENTION_HOURS`).
 * `VFX4ALL_ACCESS_CODE` asks for a code before any upload or generation, for example a demo for a
   jury. Visitors enter it in **Advanced**.
 * `VFX4ALL_DAILY_RUNS` caps the generations the server accepts per UTC day, so a shared link can

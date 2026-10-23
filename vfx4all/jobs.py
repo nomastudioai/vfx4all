@@ -25,7 +25,7 @@ import httpx
 from comfy_sdk.exceptions import (ComfyError, Forbidden, InsufficientCredits, InvalidWorkflow, JobFailed,
                                   MissingAsset, NotFound, QueueFull, Unauthorized)
 
-from .config import RUNS_DIR, UPLOADS_DIR, daily_runs, hosted, session_jobs
+from .config import RUNS_DIR, UPLOADS_DIR, daily_runs, hosted, ip_jobs, session_jobs
 
 log = logging.getLogger("vfx4all")
 
@@ -62,6 +62,7 @@ class Job:
 
     def __post_init__(self) -> None:
         self.cancel_requested = False
+        self.ip: str | None = None  # only for the per-network cap; never written to disk
         self._handles: list[Any] = []
 
     @property
@@ -167,14 +168,19 @@ class JobManager:
         self._lock = threading.Lock()
         self.usage = Usage(RUNS_DIR / "usage.json")
 
-    def submit(self, kind: str, params: dict[str, Any], work: Callable[[Job], None], owner: str | None = None) -> Job:
+    def submit(self, kind: str, params: dict[str, Any], work: Callable[[Job], None], owner: str | None = None,
+               ip: str | None = None) -> Job:
         with self._lock:
-            if hosted() and owner is not None:
-                busy = sum(1 for j in self._jobs.values() if j.owner == owner and j.status not in FINISHED)
+            if hosted():
+                running = [j for j in self._jobs.values() if j.status not in FINISHED]
+                busy = sum(1 for j in running if owner is not None and j.owner == owner)
                 if busy >= session_jobs():
                     raise LimitReached(f"You already have {busy} jobs running. Wait for one to finish.")
+                if ip is not None and sum(1 for j in running if j.ip == ip) >= ip_jobs():
+                    raise LimitReached("Too many jobs are running from your network. Wait for one to finish.")
             self.usage.take(daily_runs())
             job = Job(id=f"{kind}-{uuid.uuid4().hex[:10]}", kind=kind, params=params, owner=owner)
+            job.ip = ip
             self._jobs[job.id] = job
         job.dir.mkdir(parents=True, exist_ok=True)
         job.save()

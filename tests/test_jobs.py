@@ -62,6 +62,17 @@ class JobManagerTests(unittest.TestCase):
         release.set()
         self._wait(first.id)
 
+    def test_one_network_runs_a_limited_number_of_jobs_in_hosted_mode(self):
+        release = threading.Event()
+        env = {"VFX4ALL_MODE": "hosted", "VFX4ALL_SESSION_JOBS": "5", "VFX4ALL_IP_JOBS": "1"}
+        with mock.patch.dict(os.environ, env):
+            first = self.manager.submit("effect", {}, lambda j: release.wait(5), owner="alice", ip="10.0.0.1")
+            with self.assertRaises(LimitReached):
+                self.manager.submit("effect", {}, lambda j: None, owner="carol", ip="10.0.0.1")
+            self.manager.submit("effect", {}, lambda j: None, owner="dave", ip="10.0.0.2")
+        release.set()
+        self._wait(first.id)
+
     def test_a_restart_marks_running_jobs_failed_and_names_their_comfy_jobs(self):
         job_dir = RUNS_DIR / "effect-restarted1"
         job_dir.mkdir(parents=True, exist_ok=True)

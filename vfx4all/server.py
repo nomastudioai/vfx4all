@@ -167,7 +167,8 @@ def _preset(preset_id: str, run_mode: str) -> dict:
 
 def _submit(kind: str, params: dict, work, request: Request) -> dict:
     try:
-        job = jobs.submit(kind, params, work, owner=_owner(request))
+        job = jobs.submit(kind, params, work, owner=_owner(request),
+                          ip=request.client.host if request.client else None)
     except LimitReached as exc:
         raise HTTPException(429, str(exc)) from None
     return job.to_dict()

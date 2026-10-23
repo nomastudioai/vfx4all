@@ -81,6 +81,12 @@ def session_jobs() -> int:
     return _int_env("VFX4ALL_SESSION_JOBS", 2)
 
 
+def ip_jobs() -> int:
+    """Jobs one IP address may have queued or running at once (hosted mode). Higher than the
+    session cap, because people behind one office or venue network share an address."""
+    return _int_env("VFX4ALL_IP_JOBS", 6)
+
+
 def retention_hours() -> int:
     """Runs and uploads older than this are deleted; 0 keeps them. Hosted mode defaults to 48."""
     return _int_env("VFX4ALL_RETENTION_HOURS", 48 if hosted() else 0)
