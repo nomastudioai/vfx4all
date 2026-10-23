@@ -34,8 +34,16 @@ def get_preset(preset_id: str) -> dict[str, Any]:
     raise KeyError(f"Unknown preset: {preset_id}")
 
 
+def references_sentence(subject: str, count: int) -> str:
+    """How a scene prompt introduces the photos. Qwen Image Edit 2511 reads its inputs as image 1,
+    image 2..., and keeps identity best when each one is named with its role (round 7b, 22/10/2026)."""
+    if count > 1:
+        return f"Image 1 and image 2 are two photos of the same {subject}. Use them only as the identity reference."
+    return f"Image 1 is a photo of the {subject}. Use it only as the identity reference."
+
+
 def render(template: str, *, subject: str, aspect_words: str = "16:9 landscape",
-           identity_notes: str = "", wardrobe: str = "") -> str:
+           identity_notes: str = "", wardrobe: str = "", references: int = 1) -> str:
     if subject not in SUBJECTS:
         raise ValueError(f"subject must be one of {SUBJECTS}")
     their, them = PRONOUNS[subject]
@@ -48,6 +56,9 @@ def render(template: str, *, subject: str, aspect_words: str = "16:9 landscape",
         "aspect_words": aspect_words,
         "identity_notes": f", including {notes}" if notes else "",
         "wardrobe": wardrobe,
+        "references": references_sentence(subject, references),
+        # Asking to keep the facial hair of a woman or of a neutral subject invites a beard.
+        "facial_hair": ", facial hair" if subject == "man" else "",
     }
     return re.sub(r"\{(\w+)\}", lambda m: values.get(m.group(1), m.group(0)), template)
 

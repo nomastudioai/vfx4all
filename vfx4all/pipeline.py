@@ -109,7 +109,7 @@ def run_scene(job: Job, *, key: str | None, preset_id: str, refs: list[Path], su
     preset = get_preset(preset_id)
     fmt = ASPECTS[aspect]
     prompt = render(preset["scene_prompt"], subject=subject, aspect_words=fmt["words"],
-                    identity_notes=notes, wardrobe=wardrobe_for(preset, subject))
+                    identity_notes=notes, wardrobe=wardrobe_for(preset, subject), references=len(refs))
     seed = _seed(seed)
     job.params.update(prompt=prompt, seed_used=seed)
     with engine_for(key) as engine:

@@ -21,7 +21,7 @@ Image 2.1, whose license is non-commercial only; 2511 is Apache 2.0.
 |---|---|---|
 | `1` | `image` | Reference photo 1 |
 | `16` | `image` | Reference photo 2 (removed, with its scale node `17`, when there is only one) |
-| `8` | `prompt` | The preset's `scene_prompt`, rendered |
+| `8` | `prompt` | The preset's `scene_prompt`, rendered; it names the photos as image 1 and image 2 |
 | `12` | `width`, `height` | 1344x768 for 16:9, 768x1344 for 9:16 |
 | `13` | `seed` | Random unless given |
 | `15` | | Output image |

@@ -143,20 +143,27 @@ Add a JSON file to `presets/`:
   "modes": ["scene", "own_image", "video"],
   "duration": 6,
   "wardrobe": {"man": "...", "woman": "...", "person": "..."},
-  "scene_prompt": "Create a new cinematic film still in {aspect_words} format. The {subject} from the reference images ...",
+  "scene_prompt": "Create a new cinematic film still in {aspect_words} format. {references} The {subject} is the only person in the new still, with exactly {their} face, eyes, nose, jaw, hairline, hairstyle, hair colour{facial_hair}, skin tone and build{identity_notes}. The clothing, the place and the light come only from this description. ...",
   "effect_prompt": "Use the provided start image as the first frame. ...",
   "generic_prompt": "Use the provided start image as the first frame. ..."
 }
 ```
 
 Placeholders: `{subject}` (man, woman or person), `{their}`, `{Their}`, `{them}`, `{wardrobe}`,
-`{aspect_words}` and `{identity_notes}`. Prompts avoid subject pronouns so the verbs agree for all
-three subjects. A thumbnail at `web/thumbs/<id>.jpg` and a short loop at `web/previews/<id>.mp4`
-make the card.
+`{aspect_words}`, `{identity_notes}`, `{references}` and `{facial_hair}`. `{references}` introduces
+the photos the way Qwen Image Edit 2511 reads them ("Image 1 and image 2 are two photos of the same
+man. Use them only as the identity reference.", or the one-photo version), and `{facial_hair}` adds
+", facial hair" for a man only, so a woman's scene is never asked to keep a beard. Prompts avoid
+subject pronouns so the verbs agree for all three subjects. A thumbnail at `web/thumbs/<id>.jpg` and
+a short loop at `web/previews/<id>.mp4` make the card.
 
 Prompting notes that made these presets work: describe the state the shot starts in rather than
 the transition into it, give every effect a sound, lock counts and scale with a named rule (for
 example "CLONE COUNT LOCK: seven figures in the final frame"), and keep every instruction positive.
+For scenes, name each photo with its role and keep the identity block above as it is: with the old
+wording ("the person from the reference images") Qwen Image Edit 2511 exaggerated grey hair and
+earrings. In wide full-body shots the face gets small and likeness drops, so frame the subject
+closer when the effect allows it.
 
 ## Quality
 

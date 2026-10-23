@@ -171,6 +171,9 @@ class AppModeGraphTests(unittest.TestCase):
                 self.assertEqual(len(noises), 3)
                 self.assertTrue(all(n["inputs"]["noise_seed"] == seed for n in noises))
                 self.assertEqual(len([v for v in graph.values() if v["class_type"] == "LoadImage"]), 1)
+                prompt = graph[str(build_app_graph.SCENE_PROMPT)]["inputs"]["prompt"]
+                self.assertIn("Image 1 is a photo of the person.", prompt)  # App Mode takes one photo
+                self.assertNotIn("image 2", prompt)
 
     def test_presets_that_need_more_than_one_graph_are_refused(self):
         for preset in load_presets():

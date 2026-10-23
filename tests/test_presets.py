@@ -57,6 +57,25 @@ class PresetTests(unittest.TestCase):
                         self.assertNotIn("—", text)
                         self.assertNotIn("–", text)
 
+    def test_scene_prompts_name_each_photo_for_qwen_image_edit_2511(self):
+        # Round 7b (22/10/2026): naming the photos as image 1 and image 2 with their role fixed the
+        # hair colour and earrings 2511 exaggerated with the old "from the reference images" block.
+        for p in self.presets:
+            if "scene" not in p["modes"]:
+                continue
+            with self.subTest(preset=p["id"]):
+                template = p["scene_prompt"]
+                self.assertIn("{references}", template)
+                self.assertIn("hair colour{facial_hair}", template)
+                self.assertNotIn("reference images", template)
+                two = render(template, subject="man", references=2)
+                one = render(template, subject="woman", references=1)
+                self.assertIn("Image 1 and image 2 are two photos of the same man.", two)
+                self.assertIn("hair colour, facial hair, skin tone", two)
+                self.assertIn("Image 1 is a photo of the woman.", one)
+                self.assertNotIn("image 2", one)
+                self.assertNotIn("facial hair", one)
+
     def test_optional_fields(self):
         for p in self.presets:
             with self.subTest(preset=p["id"]):

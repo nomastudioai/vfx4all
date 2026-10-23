@@ -78,7 +78,7 @@ def build(preset: dict) -> dict:
                        SCENE_SAMPLER: SCENE_SAMPLER_ID}, 10)
     scene[str(SCENE_PROMPT)]["inputs"]["prompt"] = render(preset["scene_prompt"], subject=SUBJECT,
                                                           aspect_words=fmt["words"],
-                                                          wardrobe=wardrobe_for(preset, SUBJECT))
+                                                          wardrobe=wardrobe_for(preset, SUBJECT), references=1)
     latent = next(v for v in scene.values() if v["class_type"] == "EmptySD3LatentImage")
     latent["inputs"]["width"], latent["inputs"]["height"] = fmt["scene"]
     scene[str(SCENE_SAVE_ID)]["inputs"]["filename_prefix"] = f"vfx4all/{preset['id']}_scene"
