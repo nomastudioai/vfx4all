@@ -76,6 +76,9 @@ cp .env.example .env                            # then paste your COMFY_API_KEY
 ffmpeg ships inside the `imageio-ffmpeg` wheel, so there is nothing else to install.
 `requirements.txt` pins the exact versions the app is tested with.
 
+No photo or clip at hand? `samples/` has two photos and two clips to try both modes; see
+[samples/README.md](samples/README.md) for which effect to pair with each.
+
 ### Run the tests
 
 ```bash

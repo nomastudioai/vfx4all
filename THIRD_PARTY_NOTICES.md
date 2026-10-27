@@ -116,6 +116,7 @@ not licensed under MIT.
 ## Demo media
 
 The thumbnails in `web/thumbs/`, the preview loops in `web/previews/` and the hero image and video in
-`web/media/` were made with VFX 4 All from photos of members of the NoMa Studio AI team. They show
-real people, so they are not licensed under MIT: do not reuse them outside this project. Use your
-own media when you fork it.
+`web/media/` were made with VFX 4 All from photos of members of the NoMa Studio AI team, and the
+photos and clips in `samples/` show the same people. They show real people who agreed to this use,
+so they are not licensed under MIT: do not reuse them outside this project. Use your own media when
+you fork it.
