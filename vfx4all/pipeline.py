@@ -16,7 +16,7 @@ from .config import (ASPECTS, BLACK_LUMA_THRESHOLD, MAX_RETRIES, QUALITY_MEGAPIX
                      closest_selector)
 from .engine import Engine
 from .jobs import Job
-from .presets import get_preset, render, wardrobe_for
+from .presets import get_preset, render, wardrobe_for, with_direction
 
 SPLICE_DURATION = 5
 _SERVER_ENGINE: Engine | None = None
@@ -119,7 +119,7 @@ def run_scene(job: Job, *, key: str | None, preset_id: str, refs: list[Path], su
 
 
 def run_effect(job: Job, *, key: str | None, preset_id: str, image: Path, source: str,
-               subject: str, aspect: str, quality: str, seed: int | None) -> None:
+               subject: str, aspect: str, quality: str, seed: int | None, direction: str = "") -> None:
     preset = get_preset(preset_id)
     if source == "scene":
         template, selector = preset["effect_prompt"], ASPECTS[aspect]["selector"]
@@ -129,7 +129,7 @@ def run_effect(job: Job, *, key: str | None, preset_id: str, image: Path, source
         template = preset["generic_prompt"]
         info = media.probe(image)
         selector = closest_selector(info["width"], info["height"])
-    prompt = render(template, subject=subject)
+    prompt = with_direction(render(template, subject=subject), direction)
     seed = _seed(seed)
     job.params.update(prompt=prompt, selector=selector)
     with engine_for(key) as engine:
@@ -153,7 +153,7 @@ def run_effect(job: Job, *, key: str | None, preset_id: str, image: Path, source
 
 
 def run_splice(job: Job, *, key: str | None, preset_id: str, video: Path, seconds: float,
-               subject: str, quality: str, audio_mode: str, seed: int | None) -> None:
+               subject: str, quality: str, audio_mode: str, seed: int | None, direction: str = "") -> None:
     preset = get_preset(preset_id)
     if not supports(preset, "video"):
         raise ValueError(f"{preset['name']} cannot be spliced into a video yet")
@@ -163,7 +163,7 @@ def run_splice(job: Job, *, key: str | None, preset_id: str, video: Path, second
     job.set(0.02, f"Grabbing the frame at {seconds:.2f} s")
     frame = media.extract_frame(video, seconds, job.dir / "cut_frame.png")
     job.add_output("frame", frame)
-    prompt = render(template, subject=subject)
+    prompt = with_direction(render(template, subject=subject), direction)
     selector = closest_selector(info["width"], info["height"])
     job.params.update(prompt=prompt, selector=selector, cut=seconds)
     with engine_for(key) as engine:

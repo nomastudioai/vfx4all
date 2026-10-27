@@ -8,13 +8,13 @@ from unittest import mock
 
 from vfx4all import media
 from vfx4all.config import (HOSTED_VIDEO_LIMITS, IMAGE_LIMITS, VIDEO_LIMITS, check_image, check_video,
-                            closest_selector, video_limits)
-from vfx4all.engine import Engine
+                            closest_selector, comfy_target, video_limits)
+from vfx4all.engine import Engine, MissingApiKey
 from vfx4all.jobs import Job
-from vfx4all.pipeline import flf_size, keyframes, run_scene, supports
-from vfx4all.presets import get_preset
+from vfx4all.pipeline import flf_size, keyframes, run_scene, run_splice, supports
+from vfx4all.presets import MAX_DIRECTION, get_preset, with_direction
 
-from .helpers import make_image
+from .helpers import make_clip, make_image
 
 MB = 1024 * 1024
 
@@ -95,6 +95,52 @@ class SceneTests(unittest.TestCase):
                 self.assertIn("scene", job.outputs)
         self.assertIn("Image 1 is a photo of the man.", sent[1])
         self.assertIn("Image 1 and image 2 are two photos of the same man.", sent[2])
+
+
+class TargetTests(unittest.TestCase):
+    def test_the_base_url_says_where_the_graphs_run(self):
+        cases = {"": "cloud", "https://cloud.comfy.org": "cloud", "https://my-app.run.comfy.app": "deployment",
+                 "http://127.0.0.1:8189": "local", "http://localhost:8189": "local",
+                 "https://gpu.example.com": "custom"}
+        for url, kind in cases.items():
+            with self.subTest(url=url), mock.patch.dict(os.environ, {"COMFY_BASE_URL": url}):
+                self.assertEqual(comfy_target()["kind"], kind)
+
+    def test_your_own_comfyui_runs_without_a_key(self):
+        with mock.patch.dict(os.environ, {"COMFY_BASE_URL": "http://127.0.0.1:8189", "COMFY_API_KEY": ""}), \
+                mock.patch("vfx4all.engine.Comfy") as comfy:
+            Engine().client
+            comfy.assert_called_once_with(api_key=None)
+        with mock.patch.dict(os.environ, {"COMFY_BASE_URL": "", "COMFY_API_KEY": ""}):
+            with self.assertRaises(MissingApiKey):
+                Engine().client
+
+
+class DirectionTests(unittest.TestCase):
+    def test_the_direction_ends_the_effect_prompt(self):
+        self.assertEqual(with_direction("A burst of fire.", "  "), "A burst of fire.")
+        self.assertEqual(with_direction("A burst of fire.", "  the camera  pushes in "),
+                         "A burst of fire. the camera pushes in.")
+        self.assertEqual(with_direction("Fire.", "Slow motion!"), "Fire. Slow motion!")
+        self.assertEqual(len(with_direction("Fire.", "a" * 900)), len("Fire. ") + MAX_DIRECTION + 1)
+
+    def test_a_splice_sends_the_direction_to_ltx(self):
+        sent = {}
+
+        def fake_effect(engine, image, prompt, selector, megapixels, duration, seed, dest, progress,
+                        lora=None, pipeline=None):
+            sent["prompt"] = prompt
+            return make_clip(dest.with_suffix(".mp4"), 3.0)   # long enough for the poster 1 s after the cut
+
+        with mock.patch.object(Engine, "effect", fake_effect), tempfile.TemporaryDirectory() as tmp:
+            clip = make_clip(Path(tmp) / "walk.mp4", 2.0)
+            job = Job(id="splice-direction", kind="splice")
+            job.dir.mkdir(parents=True, exist_ok=True)
+            run_splice(job, key=None, preset_id="disintegrate", video=clip, seconds=1.0, subject="man",
+                       quality="draft", audio_mode="effect", seed=7, direction="the wind blows from the left")
+        self.assertTrue(sent["prompt"].endswith(" the wind blows from the left."))
+        self.assertEqual(job.params["prompt"], sent["prompt"])
+        self.assertIn("video", job.outputs)
 
 
 class KeyframeTests(unittest.TestCase):

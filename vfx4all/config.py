@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from urllib.parse import urlparse
 
 ROOT = Path(__file__).resolve().parent.parent
 WORKFLOWS_DIR = ROOT / "workflows"
@@ -45,6 +46,22 @@ def load_dotenv(path: Path = ROOT / ".env") -> None:
 
 def api_key() -> str:
     return os.environ.get("COMFY_API_KEY", "").strip()
+
+
+def comfy_target() -> dict:
+    """Where the graphs run, from COMFY_BASE_URL (read by comfy-sdk): Comfy Cloud when unset, a
+    Comfy Developer Platform deployment, or your own ComfyUI behind comfy-api-proxy."""
+    url = os.environ.get("COMFY_BASE_URL", "").strip()
+    host = urlparse(url if "//" in url else f"//{url}").hostname or ""
+    # label starts a sentence ("Your ComfyUI ready"), name goes inside one ("queued on your ComfyUI")
+    if not url or host == "comfy.org" or host.endswith(".comfy.org"):
+        return {"kind": "cloud", "label": "Comfy Cloud", "name": "Comfy Cloud", "needs_key": True}
+    if host.endswith(".run.comfy.app"):
+        return {"kind": "deployment", "label": "Your Comfy deployment", "name": "your Comfy deployment", "needs_key": True}
+    if host in ("localhost", "127.0.0.1", "::1") or host.endswith(".localhost"):
+        # comfy-api-proxy asks for no key unless it was started with --token
+        return {"kind": "local", "label": "Your ComfyUI", "name": "your ComfyUI", "needs_key": False}
+    return {"kind": "custom", "label": "Your Comfy server", "name": "your Comfy server", "needs_key": True}
 
 
 def _int_env(name: str, default: int) -> int:

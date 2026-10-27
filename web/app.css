@@ -304,7 +304,16 @@ html:has(meta[name="vfx4all-mode"][content="static"]) .app-only { display: none 
 .field { display: flex; flex-direction: column; gap: 7px; }
 .label { font-size: 11px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
 .label em { font-style: normal; font-weight: 600; letter-spacing: 0; text-transform: none; opacity: 0.8; }
-textarea, input[type="password"] { width: 100%; padding: 10px 12px; background: rgba(0, 0, 0, 0.3); border: 1px solid var(--line); resize: vertical; }
+textarea, input[type="password"], input[type="number"] { width: 100%; padding: 10px 12px; background: rgba(0, 0, 0, 0.3); border: 1px solid var(--line); resize: vertical; }
+.sample-btn { align-self: flex-start; margin-top: -6px; padding: 0; border: 0; background: none; cursor: pointer;
+  color: var(--cyan); font-size: 12.5px; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+.sample-btn:hover { color: var(--text); }
+.sample-btn:disabled { opacity: 0.5; cursor: wait; }
+.more { padding: 10px 12px; border: 1px solid var(--line); }
+.more summary { cursor: pointer; width: fit-content; font-size: 11px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.more summary:hover { color: var(--text); }
+.more[open] summary { margin-bottom: 12px; }
+.more .field + .field { margin-top: 12px; }
 textarea:focus, input:focus { outline: none; border-color: var(--magenta); box-shadow: 0 0 0 3px rgba(255, 0, 255, 0.15); }
 .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .seg { display: flex; gap: 6px; flex-wrap: wrap; }

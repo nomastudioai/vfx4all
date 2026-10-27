@@ -11,6 +11,7 @@ from __future__ import annotations
 import contextvars
 import json
 import logging
+import re
 import shutil
 import threading
 import time
@@ -25,7 +26,7 @@ import httpx
 from comfy_sdk.exceptions import (ComfyError, Forbidden, InsufficientCredits, InvalidWorkflow, JobFailed,
                                   MissingAsset, NotFound, QueueFull, Unauthorized)
 
-from .config import RUNS_DIR, UPLOADS_DIR, daily_runs, hosted, ip_jobs, session_jobs
+from .config import RUNS_DIR, UPLOADS_DIR, comfy_target, daily_runs, hosted, ip_jobs, session_jobs
 
 log = logging.getLogger("vfx4all")
 
@@ -105,26 +106,58 @@ class Job:
         return {url.removeprefix("/files/") for url in self.outputs.values()}
 
 
+GUIDE = "docs/RUN_ON_YOUR_COMFYUI.md"
+# How ComfyUI (directly or behind comfy-api-proxy) and Comfy deployments name a node or a model file
+# the graph asks for and the server does not have.
+MISSING_NODE = (re.compile(r"Cannot execute because (?:a )?node (?:type )?['\"]?([\w.\-]+?)['\"]? does not exist"),
+                re.compile(r"Node ['\"]([^'\"]+)['\"] not found", re.I),
+                re.compile(r"unknown node type:? ['\"]?([\w.\-]+)", re.I))
+MISSING_MODEL = re.compile(r"['\"]([^'\"]+\.(?:safetensors|ckpt|pt|pth|gguf|bin))['\"] not in")
+
+
+def missing_part(exc: BaseException) -> str | None:
+    """A message naming the missing node or model, when the error says which one it is."""
+    text = " ".join([str(getattr(exc, "message", "") or ""), json.dumps(getattr(exc, "details", None), default=str), str(exc)])
+    for pattern in MISSING_NODE:
+        found = pattern.search(text)
+        if found:
+            return (f"This Comfy server has no {found.group(1)} node. VFX 4 All only uses core nodes, so update "
+                    f"ComfyUI to its latest release and restart it ({GUIDE}).")
+    found = MISSING_MODEL.search(text)
+    if found:
+        return (f"This Comfy server does not have the model file {found.group(1)}. Download it as {GUIDE} "
+                f"explains, then restart ComfyUI.")
+    return None
+
+
 def friendly_error(exc: BaseException, job_id: str) -> str:
     """What the user reads when a job fails. The traceback goes to the log and error.txt."""
     if isinstance(exc, Cancelled):
         return "Cancelled."
+    if isinstance(exc, ComfyError) and (missing := missing_part(exc)):
+        return missing
+    target = comfy_target()
+    where, Where = target["name"], target["label"]
     if isinstance(exc, Unauthorized):
-        return "Comfy Cloud rejected the API key. Check the key in Settings or in .env."
+        return f"{Where} rejected the API key. Check the key in Settings or in .env."
     if isinstance(exc, InsufficientCredits):
         return "The Comfy workspace of this API key is out of credits."
     if isinstance(exc, Forbidden):
         return "This Comfy API key is not allowed to run these models."
     if isinstance(exc, QueueFull):
-        return "Comfy Cloud is busy right now. Try again in a minute."
+        return f"{Where} is busy right now. Try again in a minute."
     if isinstance(exc, (InvalidWorkflow, MissingAsset, NotFound)):
-        return "Comfy Cloud could not run this graph; a model or node may have been renamed in its catalog."
+        if target["kind"] == "cloud":
+            return "Comfy Cloud could not run this graph; a model or node may have been renamed in its catalog."
+        return f"{Where} could not run this graph. Check that it has every node and model file ({GUIDE})."
     if isinstance(exc, JobFailed):
-        return "The render failed on Comfy Cloud. Try again or use another seed."
+        return f"The render failed on {where}. Try again or use another seed."
     if isinstance(exc, (httpx.TimeoutException, httpx.NetworkError)):
-        return "Comfy Cloud did not answer in time. Try again."
+        if target["kind"] == "local":
+            return f"Your ComfyUI did not answer. Check that ComfyUI and comfy-api-proxy are running ({GUIDE})."
+        return f"{Where} did not answer in time. Try again."
     if isinstance(exc, ComfyError):
-        return "Comfy Cloud returned an error. Try again in a minute."
+        return f"{Where} returned an error. Try again in a minute."
     # Our own errors already speak to the user: missing key, preset rules, every take black.
     if type(exc).__name__ in ("MissingApiKey", "MediaError") or isinstance(exc, (ValueError, KeyError, RuntimeError)):
         text = exc.args[0] if exc.args else str(exc)
