@@ -6,6 +6,8 @@
   <title>VFX 4 All</title>
   <meta name="description" content="Open source cinematic VFX for photos and videos. Built on the Comfy Developer Platform with LTX-2.5, by NoMa Studio AI.">
   <meta name="theme-color" content="#0a0012">
+  <!-- "app" when the server serves this page; tools/build_site.py writes "static" for the catalog site -->
+  <meta name="vfx4all-mode" content="app">
   <link rel="icon" href="/static/brand/favicon.svg" type="image/svg+xml">
   <link rel="preload" href="/static/fonts/montserrat-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/static/app.css?v={{v}}">
@@ -75,10 +77,12 @@
     </div>
     <nav class="nav-links" aria-label="Sections">
       <a href="#effects">Effects</a>
-      <a href="#studio">Studio</a>
+      <a href="#studio" class="app-only">Studio</a>
+      <a href="#try" class="static-only" hidden>Try it</a>
       <a href="#how">How it works</a>
+      <a href="https://github.com/nomastudioai/vfx4all" class="static-only" target="_blank" rel="noopener" hidden>Code</a>
     </nav>
-    <div class="nav-right">
+    <div class="nav-right app-only">
       <span id="keyStatus" class="status" role="status" aria-label="Checking" title="Checking"><span class="dot" aria-hidden="true"></span><span class="txt">Checking</span></span>
       <button id="settingsBtn" class="icon-btn" aria-label="Advanced settings"><svg class="ic"><use href="#i-gear"/></svg></button>
     </div>
@@ -99,7 +103,7 @@
         <h1 id="heroTitle">Cinematic VFX<br><span class="grad">for everyone</span></h1>
         <p class="lead">Drop a photo or a clip, pick an effect, and get a film grade shot with sound. Every effect builds its own scene around the people in it.</p>
         <div class="cta-row">
-          <a href="#studio" class="btn btn-primary"><span>Start creating</span><svg class="ic"><use href="#i-arrow"/></svg></a>
+          <a href="#studio" id="heroCta" class="btn btn-primary"><span>Start creating</span><svg class="ic"><use href="#i-arrow"/></svg></a>
           <a href="#effects" class="btn btn-outline"><span id="heroCount">Browse 45 effects</span></a>
         </div>
         <ul class="facts">
@@ -129,8 +133,42 @@
       <div class="rail-progress" aria-hidden="true"><span id="railBar"></span></div>
     </section>
 
+    <!-- TRY IT: the static site has no server, so each effect runs as its Comfy Cloud app -->
+    <section class="try static-only" id="try" aria-labelledby="tryTitle" hidden>
+      <div class="sec-head reveal">
+        <div>
+          <h2 id="tryTitle" class="eyebrow">Try it</h2>
+          <p class="sec-sub">Each effect runs as a Comfy Cloud app. Sign in with your Comfy account, add a photo and run it.</p>
+        </div>
+      </div>
+      <div class="work">
+        <div class="panel bevel reveal">
+          <div class="chosen">
+            <img id="tryThumb" alt="">
+            <div><small>Effect</small><b id="tryName">Pick one above</b></div>
+            <a href="#effects" class="link">Change</a>
+          </div>
+          <a id="tryRun" class="comfy-link hidden" target="_blank" rel="noopener">
+            <svg class="ic"><use href="#i-external"/></svg>
+            <span><b>Run it in Comfy Cloud</b><small>Sign in with your own Comfy account. No API key needed.</small></span>
+          </a>
+          <p id="tryNote" class="try-note muted hidden"></p>
+          <p class="try-note muted">Video mode, where the effect takes over your own clip, runs in the full app. <a href="https://github.com/nomastudioai/vfx4all" class="link" target="_blank" rel="noopener">Get the code on GitHub</a>.</p>
+        </div>
+        <div class="stage bevel reveal">
+          <video id="tryPreview" class="try-preview" muted loop playsinline preload="metadata"></video>
+        </div>
+      </div>
+    </section>
+
+    <!-- DEMO: tools/build_site.py --demo puts the video in place of the marker -->
+    <section class="demo static-only" id="demo" aria-labelledby="demoTitle" hidden>
+      <div class="sec-head reveal"><h2 id="demoTitle" class="eyebrow">Watch the demo</h2></div>
+      <!-- demo -->
+    </section>
+
     <!-- STUDIO -->
-    <section class="studio" id="studio" aria-labelledby="studioTitle">
+    <section class="studio app-only" id="studio" aria-labelledby="studioTitle">
       <div class="sec-head reveal">
         <div>
           <h2 id="studioTitle" class="eyebrow">Studio</h2>
