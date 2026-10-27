@@ -56,6 +56,45 @@ class ServerTests(unittest.TestCase):
         self.assertFalse(body["access_required"])
         self.assertEqual(body["video_limits"], VIDEO_LIMITS)
         self.assertEqual(body["image_limits"], IMAGE_LIMITS)
+        self.assertEqual(body["target"], {"kind": "cloud", "label": "Comfy Cloud"})
+
+    def test_your_own_comfyui_needs_no_key(self):
+        with mock.patch.dict(os.environ, {"COMFY_BASE_URL": "http://127.0.0.1:8189"}):
+            body = self.client.get("/api/health").json()
+        self.assertTrue(body["has_key"])
+        self.assertEqual(body["target"], {"kind": "local", "label": "Your ComfyUI"})
+
+    def test_a_job_for_your_own_comfyui_is_taken_without_a_key(self):
+        upload = self.upload(make_clip(self.dir / "own-comfyui.mp4", 3)).json()
+        body = {"preset": "disintegrate", "video": upload["id"], "seconds": 0.5, "seed": 7, "direction": "slow wind"}
+        self.assertEqual(self.client.post("/api/jobs/splice", json=body).status_code, 401)
+        with mock.patch.dict(os.environ, {"COMFY_BASE_URL": "http://127.0.0.1:8189"}), \
+                mock.patch.object(server.pipeline, "run_splice") as run:
+            res = self.client.post("/api/jobs/splice", json=body)
+            self.assertEqual(res.status_code, 200, res.text)
+            job = res.json()
+            for _ in range(50):
+                if run.called:
+                    break
+                time.sleep(0.05)
+        self.assertEqual(job["params"]["direction"], "slow wind")
+        self.assertEqual(job["params"]["seed"], 7)
+        self.assertEqual(run.call_args.kwargs["direction"], "slow wind")
+
+    def test_the_samples_are_served_and_nothing_else(self):
+        photo = self.client.get("/samples/photos/front.jpg")
+        self.assertEqual(photo.status_code, 200)
+        self.assertEqual(photo.headers["content-type"], "image/jpeg")
+        self.assertEqual(self.client.get("/samples/clips/street-walk-16x9.mp4").status_code, 200)
+        for path in ("/samples/photos/../README.md", "/samples/photos/%2E%2E%2FREADME.md", "/samples/runs/front.jpg",
+                     "/samples/photos/missing.jpg"):
+            with self.subTest(path=path):
+                self.assertIn(self.client.get(path).status_code, (404, 422))
+
+    def test_a_long_direction_is_refused(self):
+        res = self.client.post("/api/jobs/effect", json={"preset": "walk-of-fire", "image": "x" * 32,
+                                                          "direction": "a" * 501})
+        self.assertEqual(res.status_code, 422)
 
     def test_presets(self):
         cards = self.client.get("/api/presets").json()

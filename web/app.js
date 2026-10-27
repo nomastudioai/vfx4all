@@ -475,9 +475,19 @@ function promptBox(text) {
 
 // The request fields a result can be run again with, by job kind.
 const RERUN_FIELDS = {
-  effect: ["preset", "scene_job", "image", "subject", "aspect", "quality"],
-  splice: ["preset", "video", "seconds", "subject", "quality", "audio"],
+  effect: ["preset", "scene_job", "image", "subject", "aspect", "quality", "direction"],
+  splice: ["preset", "video", "seconds", "subject", "quality", "audio", "direction"],
 };
+
+// "More options": the extra direction and a seed, sent only when filled in.
+function moreOptions() {
+  const out = {};
+  const direction = $("#direction").value.trim();
+  if (direction) out.direction = direction;
+  const seed = $("#seedInput").value.trim();
+  if (/^\d+$/.test(seed) && Number(seed) <= 4294967295) out.seed = Number(seed);
+  return out;
+}
 
 function resultTitle(kind, body) {
   const where = kind === "splice" ? ` from ${Number(body.seconds || 0).toFixed(2)} s` : "";
@@ -652,6 +662,26 @@ async function addPhotos(fileList) {
   try { state.refs.push(...(await uploadFiles(images.slice(0, 2 - state.refs.length)))); renderThumbs(); } catch (err) { fail(err); }
 }
 
+// The files in samples/: photos and a clip of our own team, who agreed to be used.
+async function sampleFiles(paths) {
+  return Promise.all(paths.map(async (path) => {
+    const res = await fetch(path);
+    if (!res.ok) throw new Error("This copy of the app has no samples folder.");
+    const blob = await res.blob();
+    return new File([blob], path.split("/").pop(), { type: blob.type });
+  }));
+}
+
+async function useSample(button, paths, add) {
+  button.disabled = true;
+  try {
+    const files = await sampleFiles(paths);
+    $("#consent").checked = true;
+    await add(files);
+    toast("Sample of our own team, used with their permission");
+  } catch (err) { fail(err); } finally { button.disabled = false; }
+}
+
 function needPhoto() {
   if (!state.preset) { toast("Pick an effect first", true); $("#effects").scrollIntoView({ behavior: "smooth" }); return false; }
   if (!state.refs.length) { toast("Add a photo first", true); return false; }
@@ -669,16 +699,17 @@ function showScene(job) {
 }
 
 async function buildScene() {
+  const { seed } = moreOptions();   // undefined drops out of the JSON body
   const done = await waitJob(await startJob("scene", {
     preset: state.preset, refs: state.refs.map((r) => r.id), subject: state.photo.subject,
-    notes: $("#notes").value, aspect: state.photo.aspect,
+    notes: $("#notes").value, aspect: state.photo.aspect, seed,
   }), { title: presetName(), kind: "scene" });
   showScene(done);
   return done;
 }
 
 function animate() {
-  const body = { preset: state.preset, subject: state.photo.subject, aspect: state.photo.aspect, quality: state.photo.quality };
+  const body = { preset: state.preset, subject: state.photo.subject, aspect: state.photo.aspect, quality: state.photo.quality, ...moreOptions() };
   if (state.ownImage) body.image = state.refs[0].id; else body.scene_job = state.sceneJob;
   return runJob("effect", body, resultTitle("effect", body));
 }
@@ -760,7 +791,7 @@ function splice() {
   if (!state.upload) return toast("Add a clip first", true);
   const body = {
     preset: state.preset, video: state.upload.id, seconds: state.cut,
-    subject: state.video.subject, quality: state.video.quality, audio: state.video.audio,
+    subject: state.video.subject, quality: state.video.quality, audio: state.video.audio, ...moreOptions(),
   };
   return runJob("splice", body, resultTitle("splice", body));
 }
@@ -835,7 +866,9 @@ async function refreshKeyStatus() {
     const own = Boolean(userKey());
     const needsCode = health.access_required && !accessCode();
     pill.className = `status ${!needsCode && (own || health.has_key) ? "ok" : "warn"}`;
-    text = needsCode ? "Access code needed" : own ? "Your Comfy key" : health.has_key ? "Comfy Cloud ready" : "No Comfy key";
+    // where the graphs run: Comfy Cloud, your own ComfyUI or a Comfy deployment (COMFY_BASE_URL)
+    const where = health.target?.label || "Comfy Cloud";
+    text = needsCode ? "Access code needed" : own ? "Your Comfy key" : health.has_key ? `${where} ready` : "No Comfy key";
   } catch {
     pill.className = "status warn";
     text = "Server offline";
@@ -859,6 +892,9 @@ async function init() {
   bindRail();
   bindDrop($("#photoDrop"), $("#photoInput"), addPhotos);
   bindDrop($("#videoDrop"), $("#videoInput"), addVideo);
+  $("#samplePhotos").addEventListener("click", (e) => useSample(e.currentTarget,
+    ["/samples/photos/front.jpg", "/samples/photos/side.jpg"], (files) => { state.refs = []; renderThumbs(); return addPhotos(files); }));
+  $("#sampleClip").addEventListener("click", (e) => useSample(e.currentTarget, ["/samples/clips/street-walk-16x9.mp4"], addVideo));
   $$(".mode").forEach((m) => m.addEventListener("click", () => switchTab(m.dataset.tab)));
 
   $("#ownImage").addEventListener("change", (e) => {

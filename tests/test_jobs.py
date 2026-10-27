@@ -10,7 +10,7 @@ from pathlib import Path
 from unittest import mock
 
 import httpx
-from comfy_sdk.exceptions import JobFailed
+from comfy_sdk.exceptions import InvalidWorkflow, JobFailed
 
 from vfx4all.config import RUNS_DIR, UPLOADS_DIR
 from vfx4all.jobs import Cancelled, JobManager, LimitReached, Usage, friendly_error
@@ -28,6 +28,27 @@ class FriendlyErrorTests(unittest.TestCase):
         for phrase, exc in cases.items():
             with self.subTest(phrase=phrase):
                 self.assertIn(phrase, friendly_error(exc, "job-1"))
+
+    def test_a_missing_node_or_model_is_named(self):
+        # how ComfyUI words them, directly or behind comfy-api-proxy
+        node = InvalidWorkflow("Cannot execute because node LTXVAddGeneratedKeyframes does not exist.",
+                               code="invalid_workflow")
+        model = InvalidWorkflow("Prompt outputs failed validation", code="invalid_workflow", details={
+            "node_errors": {"4": {"errors": [{"type": "value_not_in_list", "message": "Value not in list",
+                                              "details": "unet_name: 'qwen_image_edit_2511_int8_convrot.safetensors' not in []"}]}}})
+        self.assertIn("no LTXVAddGeneratedKeyframes node", friendly_error(node, "job-1"))
+        said = friendly_error(model, "job-1")
+        self.assertIn("model file qwen_image_edit_2511_int8_convrot.safetensors", said)
+        self.assertIn("docs/RUN_ON_YOUR_COMFYUI.md", said)
+        other = InvalidWorkflow("Prompt outputs failed validation", code="invalid_workflow")
+        self.assertIn("renamed in its catalog", friendly_error(other, "job-1"))
+
+    def test_the_messages_name_where_the_graph_runs(self):
+        with mock.patch.dict(os.environ, {"COMFY_BASE_URL": "http://127.0.0.1:8189"}):
+            down = friendly_error(httpx.ConnectError("refused"), "job-1")
+            self.assertIn("Check that ComfyUI and comfy-api-proxy are running", down)
+            self.assertIn("The render failed on your ComfyUI", friendly_error(JobFailed("job failed"), "job-1"))
+        self.assertIn("The render failed on Comfy Cloud", friendly_error(JobFailed("job failed"), "job-1"))
 
 
 class UsageTests(unittest.TestCase):

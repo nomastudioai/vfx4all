@@ -25,10 +25,10 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from . import __version__, media, pipeline
-from .config import (ASPECTS, IMAGE_LIMITS, RUNS_DIR, UPLOADS_DIR, WEB_DIR, access_code, api_key, check_image,
-                     check_video, hosted, load_dotenv, mode, retention_hours, video_limits)
+from .config import (ASPECTS, IMAGE_LIMITS, ROOT, RUNS_DIR, UPLOADS_DIR, WEB_DIR, access_code, api_key, check_image,
+                     check_video, comfy_target, hosted, load_dotenv, mode, retention_hours, video_limits)
 from .jobs import LimitReached, JobManager
-from .presets import get_preset, load_presets, public_view
+from .presets import MAX_DIRECTION, get_preset, load_presets, public_view
 
 load_dotenv()
 RUNS_DIR.mkdir(parents=True, exist_ok=True)
@@ -149,7 +149,7 @@ def _upload_path(upload_id: str, request: Request) -> Path:
 def _key(user_key: str | None) -> str | None:
     """The key a generation bills: the user's own if they sent one, else the server's."""
     key = (user_key or "").strip() or None
-    if not key and not api_key():
+    if not key and not api_key() and comfy_target()["needs_key"]:
         raise HTTPException(401, "No Comfy API key. Add yours in Settings or set COMFY_API_KEY in .env.")
     return key
 
@@ -178,7 +178,10 @@ def _submit(kind: str, params: dict, work, request: Request) -> dict:
 
 @app.get("/api/health")
 def health() -> dict:
-    return {"ok": True, "version": __version__, "mode": mode(), "has_key": bool(api_key()),
+    target = comfy_target()
+    return {"ok": True, "version": __version__, "mode": mode(),
+            "has_key": bool(api_key()) or not target["needs_key"],
+            "target": {"kind": target["kind"], "label": target["label"]},
             "access_required": bool(access_code()), "video_limits": video_limits(), "image_limits": IMAGE_LIMITS}
 
 
@@ -242,7 +245,8 @@ class EffectRequest(BaseModel):
     subject: Subject = "person"
     aspect: Aspect = "16:9"
     quality: Quality = "draft"
-    seed: int | None = None
+    seed: int | None = Field(None, ge=0, le=2**32 - 1)
+    direction: str = Field("", max_length=MAX_DIRECTION)   # added to the end of the effect prompt
 
 
 class SpliceRequest(BaseModel):
@@ -252,7 +256,8 @@ class SpliceRequest(BaseModel):
     subject: Subject = "person"
     quality: Quality = "draft"
     audio: Literal["effect", "original"] = "effect"
-    seed: int | None = None
+    seed: int | None = Field(None, ge=0, le=2**32 - 1)
+    direction: str = Field("", max_length=MAX_DIRECTION)
 
 
 @app.post("/api/jobs/scene")
@@ -286,7 +291,7 @@ def effect(req: EffectRequest, request: Request, x_comfy_key: str | None = Heade
         raise HTTPException(400, "Send scene_job or image")
     return _submit("effect", req.model_dump(), lambda j: pipeline.run_effect(
         j, key=key, preset_id=req.preset, image=image, source=source, subject=req.subject,
-        aspect=req.aspect, quality=req.quality, seed=req.seed), request)
+        aspect=req.aspect, quality=req.quality, seed=req.seed, direction=req.direction), request)
 
 
 @app.post("/api/jobs/splice")
@@ -298,7 +303,7 @@ def splice(req: SpliceRequest, request: Request, x_comfy_key: str | None = Heade
     video = _upload_path(req.video, request)
     return _submit("splice", req.model_dump(), lambda j: pipeline.run_splice(
         j, key=key, preset_id=req.preset, video=video, seconds=req.seconds, subject=req.subject,
-        quality=req.quality, audio_mode=req.audio, seed=req.seed), request)
+        quality=req.quality, audio_mode=req.audio, seed=req.seed, direction=req.direction), request)
 
 
 def _job_for(job_id: str, request: Request):
@@ -333,6 +338,20 @@ def files(path: str, request: Request) -> FileResponse:
         raise HTTPException(404, "Not found")
     target = (RUNS_DIR / path).resolve()
     if not target.is_file() or RUNS_DIR.resolve() not in target.parents:
+        raise HTTPException(404, "Not found")
+    return FileResponse(target)
+
+
+SAMPLES_DIR = ROOT / "samples"
+SAMPLE_TYPES = {".jpg", ".jpeg", ".png", ".webp", ".mp4"}
+
+
+@app.get("/samples/{kind}/{name}")
+def sample(kind: Literal["photos", "clips"], name: str) -> FileResponse:
+    """The photos and clips in samples/, for the "Try our sample" buttons."""
+    folder = (SAMPLES_DIR / kind).resolve()
+    target = (folder / name).resolve()
+    if target.parent != folder or target.suffix.lower() not in SAMPLE_TYPES or not target.is_file():
         raise HTTPException(404, "Not found")
     return FileResponse(target)
 

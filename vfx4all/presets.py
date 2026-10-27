@@ -63,6 +63,19 @@ def render(template: str, *, subject: str, aspect_words: str = "16:9 landscape",
     return re.sub(r"\{(\w+)\}", lambda m: values.get(m.group(1), m.group(0)), template)
 
 
+MAX_DIRECTION = 500
+
+
+def with_direction(prompt: str, direction: str) -> str:
+    """The user's extra direction goes after the preset's own effect prompt, as one more sentence."""
+    extra = " ".join((direction or "").split())[:MAX_DIRECTION].strip()
+    if not extra:
+        return prompt
+    if extra[-1] not in ".!?":
+        extra += "."
+    return f"{prompt.rstrip()} {extra}"
+
+
 def wardrobe_for(preset: dict[str, Any], subject: str) -> str:
     wardrobe = preset.get("wardrobe") or {}
     return wardrobe.get(subject) or wardrobe.get("person") or "simple dark clothes"

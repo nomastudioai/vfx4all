@@ -33,6 +33,10 @@ start, and VFX 4 All continues the shot from that exact frame. The result is you
 cut, then the effect, joined on the same frame so the cut is invisible. Clips from 2 to 60 seconds,
 480p to 4K, up to 500 MB (`VIDEO_LIMITS` in `vfx4all/config.py`).
 
+No photo or clip at hand? Each mode loads our own samples with one click (see [samples/](samples/)).
+Under **More options**, an extra direction in English goes after the preset's effect prompt, and a
+seed repeats a take.
+
 **In Comfy Cloud, no key at all.** Every preset that animates a single first frame (41 of the 45)
 can also run as a Comfy Cloud App Mode app: one graph that takes your photo, builds the scene and
 renders the effect. You open it with your own
@@ -114,8 +118,14 @@ Every generation bills the Comfy Cloud workspace that owns the API key it runs w
   uses it for that job only and never stores it. If they leave it empty, the server key from `.env`
   is used, so read [Hosting it](#hosting-it) before you expose the app.
 * **Your own GPU, no cloud credits:** the models are open weights, so the same app can drive your own
-  ComfyUI through [comfy-api-proxy](https://github.com/Comfy-Org/comfy-api-proxy). Set
+  ComfyUI through [comfy-api-proxy](https://github.com/Comfy-Org/comfy-api-proxy), with no key. Set
   `COMFY_BASE_URL=http://127.0.0.1:8189` in `.env`.
+* **A Comfy deployment:** a ComfyUI of your own on a dedicated cloud GPU, billed while it is up. Set
+  `COMFY_BASE_URL` to its URL.
+
+[docs/RUN_ON_YOUR_COMFYUI.md](docs/RUN_ON_YOUR_COMFYUI.md) lists every model file the graphs load, with
+its source, revision and download command, and the steps for the proxy and for a deployment. The top
+bar of the app says where it runs.
 
 Only open-weights models run in the workflows, so no partner API credits are used: Comfy Cloud
 charges GPU time. In our tests on Comfy Cloud a scene took about 10 seconds of GPU and a 6 second

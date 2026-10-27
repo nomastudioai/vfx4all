@@ -24,7 +24,7 @@ import httpx
 from comfy_sdk import Comfy, Progress, StatusChange
 
 from .config import (DFR_WORKFLOW, EDIT_WORKFLOW, EFFECT_WORKFLOW, FLF_WORKFLOW, SCENE_WORKFLOW, SIZE_MULTIPLE,
-                     api_key, effect_pipeline)
+                     api_key, comfy_target, effect_pipeline)
 from .jobs import ACTIVE_JOB, Cancelled
 
 ProgressFn = Callable[[float | None, str], None]
@@ -139,9 +139,9 @@ class Engine:
     def client(self) -> Comfy:
         if self._client is None:
             key = self._key or api_key()
-            if not key:
+            if not key and comfy_target()["needs_key"]:
                 raise MissingApiKey("Add your Comfy API key in Settings, or set COMFY_API_KEY in .env.")
-            self._client = Comfy(api_key=key)
+            self._client = Comfy(api_key=key or None)
         return self._client
 
     def close(self) -> None:
@@ -223,17 +223,18 @@ class Engine:
         owner = ACTIVE_JOB.get()
         if owner is not None and owner.cancel_requested:
             raise Cancelled()
-        progress(0.02, "Uploading inputs and queueing on Comfy Cloud")
+        target = comfy_target()
+        progress(0.02, f"Uploading inputs and queueing on {target['name']}")
         job = retry_io(lambda: self.client.submit(wf), retry_on=(httpx.ConnectError, httpx.ConnectTimeout))
         if owner is not None:
             owner.attach(job)
-        progress(0.05, "Queued on Comfy Cloud")
+        progress(0.05, f"Queued on {target['name']}")
         try:
             for event in job.events():
                 if isinstance(event, Progress):
                     progress(max(0.05, min(event.value, 0.98)), event.message or "Generating")
                 elif isinstance(event, StatusChange):
-                    progress(None, f"Comfy Cloud: {event.status}")
+                    progress(None, f"{target['label']}: {event.status}")
         except Exception:  # the live stream is best effort; polling below is authoritative
             pass
         try:

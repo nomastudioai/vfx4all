@@ -209,6 +209,7 @@
               <span class="drop-sub">A clear front view works best. A second angle helps the likeness.</span>
               <span class="drop-sub" id="photoLimit">PNG, JPG or WEBP.</span>
             </label>
+            <button type="button" class="sample-btn" id="samplePhotos">No photo at hand? Try our sample photos</button>
             <div id="photoThumbs" class="thumbs"></div>
 
             <label class="switch">
@@ -262,6 +263,7 @@
               <span class="drop-main">Drop a video clip</span>
               <span class="drop-sub">Filmed or AI generated. The effect starts at the moment you choose.</span>
             </label>
+            <button type="button" class="sample-btn" id="sampleClip">No clip at hand? Try our sample clip</button>
 
             <div class="limits" id="videoLimits">
               <ul>
@@ -311,6 +313,18 @@
               <button id="spliceBtn" class="btn btn-primary"><svg class="ic"><use href="#i-wand"/></svg><span>Apply effect</span></button>
             </div>
           </div>
+
+          <details class="more" id="moreOptions">
+            <summary>More options</summary>
+            <label class="field">
+              <span class="label">Extra direction <em>optional, in English, added to the effect prompt</em></span>
+              <textarea id="direction" rows="2" maxlength="500" placeholder="the camera slowly circles around them"></textarea>
+            </label>
+            <label class="field">
+              <span class="label">Seed <em>optional, the same seed repeats a take</em></span>
+              <input type="number" id="seedInput" min="0" max="4294967295" step="1" inputmode="numeric" placeholder="Random">
+            </label>
+          </details>
 
           <a id="comfyLink" class="comfy-link hidden" target="_blank" rel="noopener">
             <svg class="ic"><use href="#i-external"/></svg>
